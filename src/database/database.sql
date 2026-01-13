@@ -1,23 +1,20 @@
--- Création du schéma
-CREATE SCHEMA IF NOT EXISTS cross_sec;
-
 -- =========================
 -- TYPES ENUM
 -- =========================
 
-DROP TYPE IF EXISTS cross_sec.mois_francais CASCADE;
-CREATE TYPE cross_sec.mois_francais AS ENUM (
+DROP TYPE IF EXISTS mois_francais CASCADE;
+CREATE TYPE mois_francais AS ENUM (
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 );
 
-DROP TYPE IF EXISTS cross_sec.jours_semaine_francais CASCADE;
-CREATE TYPE cross_sec.jours_semaine_francais AS ENUM (
+DROP TYPE IF EXISTS jours_semaine_francais CASCADE;
+CREATE TYPE jours_semaine_francais AS ENUM (
     'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
 );
 
-DROP TYPE IF EXISTS cross_sec.phase_journee CASCADE;
-CREATE TYPE cross_sec.phase_journee AS ENUM (
+DROP TYPE IF EXISTS phase_journee CASCADE;
+CREATE TYPE phase_journee AS ENUM (
     'matinée', 'déjeuner', 'après-midi', 'nuit'
 );
 
@@ -25,15 +22,15 @@ CREATE TYPE cross_sec.phase_journee AS ENUM (
 -- TABLE OPERATIONS
 -- =========================
 
-DROP TABLE IF EXISTS cross_sec.operations CASCADE;
-CREATE TABLE cross_sec.operations (
+DROP TABLE IF EXISTS operations CASCADE;
+CREATE TABLE operations (
     operation_id BIGINT PRIMARY KEY,
     type_operation VARCHAR(3),
     pourquoi_alerte VARCHAR(100),
     moyen_alerte VARCHAR(100),
     qui_alerte VARCHAR(100),
     categorie_qui_alerte VARCHAR(100),
-    cross VARCHAR(50) NOT NULL,
+    "cross" VARCHAR(50) NOT NULL,
     departement VARCHAR(100),
     est_metropolitain BOOLEAN,
     evenement VARCHAR(100),
@@ -55,20 +52,20 @@ CREATE TABLE cross_sec.operations (
     systeme_source VARCHAR(50)
 );
 
-CREATE INDEX idx_operations_type_operation ON cross_sec.operations(type_operation);
-CREATE INDEX idx_operations_pourquoi_alerte ON cross_sec.operations(pourquoi_alerte);
-CREATE INDEX idx_operations_cross ON cross_sec.operations(cross);
-CREATE INDEX idx_operations_departement ON cross_sec.operations(departement);
-CREATE INDEX idx_operations_date_reception ON cross_sec.operations(date_heure_reception_alerte);
-CREATE INDEX idx_operations_date_fin ON cross_sec.operations(date_heure_fin_operation);
+CREATE INDEX idx_operations_type_operation ON operations(type_operation);
+CREATE INDEX idx_operations_pourquoi_alerte ON operations(pourquoi_alerte);
+CREATE INDEX idx_operations_cross ON operations("cross");
+CREATE INDEX idx_operations_departement ON operations(departement);
+CREATE INDEX idx_operations_date_reception ON operations(date_heure_reception_alerte);
+CREATE INDEX idx_operations_date_fin ON operations(date_heure_fin_operation);
 
 -- =========================
 -- TABLE FLOTTEURS
 -- =========================
 
-DROP TABLE IF EXISTS cross_sec.flotteurs;
-CREATE TABLE cross_sec.flotteurs (
-    operation_id BIGINT REFERENCES cross_sec.operations(operation_id) ON DELETE CASCADE,
+DROP TABLE IF EXISTS flotteurs;
+CREATE TABLE flotteurs (
+    operation_id BIGINT REFERENCES operations(operation_id) ON DELETE CASCADE,
     numero_ordre INTEGER NOT NULL,
     pavillon VARCHAR(50),
     resultat_flotteur VARCHAR(100) NOT NULL,
@@ -77,34 +74,34 @@ CREATE TABLE cross_sec.flotteurs (
     numero_immatriculation VARCHAR(100)
 );
 
-CREATE INDEX idx_flotteurs_operation_id ON cross_sec.flotteurs(operation_id);
-CREATE INDEX idx_flotteurs_resultat ON cross_sec.flotteurs(resultat_flotteur);
-CREATE INDEX idx_flotteurs_type ON cross_sec.flotteurs(type_flotteur);
-CREATE INDEX idx_flotteurs_categorie ON cross_sec.flotteurs(categorie_flotteur);
+CREATE INDEX idx_flotteurs_operation_id ON flotteurs(operation_id);
+CREATE INDEX idx_flotteurs_resultat ON flotteurs(resultat_flotteur);
+CREATE INDEX idx_flotteurs_type ON flotteurs(type_flotteur);
+CREATE INDEX idx_flotteurs_categorie ON flotteurs(categorie_flotteur);
 
 -- =========================
 -- TABLE RESULTATS HUMAIN
 -- =========================
 
-DROP TABLE IF EXISTS cross_sec.resultats_humain;
-CREATE TABLE cross_sec.resultats_humain (
-    operation_id BIGINT REFERENCES cross_sec.operations(operation_id) ON DELETE CASCADE,
+DROP TABLE IF EXISTS resultats_humain;
+CREATE TABLE resultats_humain (
+    operation_id BIGINT REFERENCES operations(operation_id) ON DELETE CASCADE,
     categorie_personne VARCHAR(100) NOT NULL,
     resultat_humain VARCHAR(100) NOT NULL,
     nombre INTEGER NOT NULL,
     dont_nombre_blesse INTEGER
 );
 
-CREATE INDEX idx_resultats_humain_operation_id ON cross_sec.resultats_humain(operation_id);
-CREATE INDEX idx_resultats_humain_resultat ON cross_sec.resultats_humain(resultat_humain);
+CREATE INDEX idx_resultats_humain_operation_id ON resultats_humain(operation_id);
+CREATE INDEX idx_resultats_humain_resultat ON resultats_humain(resultat_humain);
 
 -- =========================
 -- TABLE OPERATIONS_STATS
 -- =========================
 
-DROP TABLE IF EXISTS cross_sec.operations_stats;
-CREATE TABLE cross_sec.operations_stats (
-    operation_id BIGINT PRIMARY KEY REFERENCES cross_sec.operations(operation_id) ON DELETE CASCADE,
+DROP TABLE IF EXISTS operations_stats;
+CREATE TABLE operations_stats (
+    operation_id BIGINT PRIMARY KEY REFERENCES operations(operation_id) ON DELETE CASCADE,
     date DATE NOT NULL,
     annee INTEGER NOT NULL,
     mois INTEGER NOT NULL,
@@ -186,7 +183,7 @@ CREATE TABLE cross_sec.operations_stats (
     sans_flotteur_implique BOOLEAN NOT NULL
 );
 
-CREATE INDEX idx_operations_stats_date ON cross_sec.operations_stats(date);
-CREATE INDEX idx_operations_stats_annee ON cross_sec.operations_stats(annee);
-CREATE INDEX idx_operations_stats_phase_journee ON cross_sec.operations_stats(phase_journee);
-CREATE INDEX idx_operations_stats_plongee ON cross_sec.operations_stats(concerne_plongee);
+CREATE INDEX idx_operations_stats_date ON operations_stats(date);
+CREATE INDEX idx_operations_stats_annee ON operations_stats(annee);
+CREATE INDEX idx_operations_stats_phase_journee ON operations_stats(phase_journee);
+CREATE INDEX idx_operations_stats_plongee ON operations_stats(concerne_plongee);
