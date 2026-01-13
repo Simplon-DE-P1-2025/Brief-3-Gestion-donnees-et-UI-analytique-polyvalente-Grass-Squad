@@ -70,13 +70,12 @@ def insert_with_copy(df, table_name, conn):
     cursor = conn.cursor()
     try:
         cursor.execute(f"TRUNCATE TABLE {table_name} CASCADE")
-        cursor.copy_from(
-            buffer,
-            table_name,
-            sep='\t',
-            null='\\N',
-            columns=list(df.columns)
-        )
+        
+        # Échapper les noms de colonnes et utiliser copy_expert pour supporter les schémas
+        columns_str = ', '.join([f'"{col}"' for col in df.columns])
+        copy_sql = f"COPY {table_name} ({columns_str}) FROM STDIN WITH (FORMAT CSV, DELIMITER E'\\t', NULL '\\N')"
+        cursor.copy_expert(copy_sql, buffer)
+        
         conn.commit()
     except Exception as e:
         conn.rollback()
