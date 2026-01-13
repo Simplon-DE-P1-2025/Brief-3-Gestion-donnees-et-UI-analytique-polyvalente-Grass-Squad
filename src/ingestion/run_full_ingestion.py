@@ -4,22 +4,28 @@ from psycopg2.extras import execute_values
 import os
 import numpy as np
 
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
+
 # --------------------------
 # CONFIGURATION
 # --------------------------
-DB_NAME = "db_operations"
-DB_USER = "postgres"
-DB_PASSWORD = "root"
-DB_HOST = "localhost"
+DB_NAME = os.getenv("DB_NAME", "db_operations")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "root")
+DB_HOST = os.getenv("DB_HOST", "localhost")
 
-# Chemins CSV
-CSV_OPERATIONS = "../../data/raw/operations.csv"
-CSV_FLOTTEURS = "../../data/raw/flotteurs.csv"
-CSV_RESULTATS_HUMAIN = "../../data/raw/resultats_humain.csv"
-CSV_OPERATIONS_STATS = "../../data/raw/operations_stats.csv"
+# Chemins CSV (Robust relative paths)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_OPERATIONS = os.path.join(BASE_DIR, "../../data/raw/operations.csv")
+CSV_FLOTTEURS = os.path.join(BASE_DIR, "../../data/raw/flotteurs.csv")
+CSV_RESULTATS_HUMAIN = os.path.join(BASE_DIR, "../../data/raw/resultats_humain.csv")
+CSV_OPERATIONS_STATS = os.path.join(BASE_DIR, "../../data/raw/operations_stats.csv")
 
 # Chemin SQL pour créer les tables Bronze
-SQL_CREATE_TABLES = "../database/create_bronze_tables.sql"
+SQL_CREATE_TABLES = os.path.join(BASE_DIR, "../database/create_bronze_tables.sql")
 
 # --------------------------
 # 1️⃣ Créer la base si besoin
