@@ -5,8 +5,10 @@ L'objectif est de concevoir une chaîne de traitement de données (ETL), d'assur
 
 Ce projet implémente un pipeline ETL (Extract, Transform, Load) complet pour traiter et analyser les données de sauvetage maritime provenant des CROSS (Centres Régionaux Opérationnels de Surveillance et de Sauvetage).
 
+## 🚀 Fonctionnalités Clés
+
 - **Ingestion de données (ETL)** : Pipeline automatisé pour charger des fichiers CSV bruts vers PostgreSQL.
-- **Base de données** : Modélisation SQL (tables Bronze/Raw).
+- **Base de données** : Modélisation SQL (tables Bronze/Raw) adaptée au reporting.
 - **Interface Streamlit** :
   - **Dashboard** : Visualisation des KPIs et cartographie des opérations.
   - **Gestion Données (CRUD)** : Éditeur interactif pour corriger les données en temps réel.
@@ -14,31 +16,79 @@ Ce projet implémente un pipeline ETL (Extract, Transform, Load) complet pour tr
 - **Qualité & Tests** : Validation des schémas avec Pandera et tests unitaires avec Pytest.
 - **Environnement moderne** : Utilisation de `uv` pour la gestion des dépendances.
 
-## 🎯 Objectifs
+---
 
-- **Python** (3.13+)
-- **PostgreSQL**
-- **[uv](https://github.com/astral-sh/uv)**
+## 🛠️ Technologies Utilisées
 
-## 📊 Sources de Données
+| Technologie | Usage |
+|-------------|-------|
+| **Python 3.13+** | Langage principal |
+| **PostgreSQL** | Base de données relationnelle |
+| **[uv](https://github.com/astral-sh/uv)** | Gestionnaire de dépendances et d'environnement |
+| **Pandas / Polars** | Manipulation de données |
+| **Pandera** | Validation de schémas de données |
+| **Streamlit** | Interface utilisateur (Dashboard & CRUD) |
+| **Pytest** | Tests unitaires et d'intégration |
 
-Le pipeline traite 4 fichiers CSV principaux :
+---
 
-2. **Installer les dépendances**
-   ```bash
-   uv sync
-   ```
+## ⚙️ Installation et Configuration
 
-3. **Configuration Base de Données (.env)**
-   Créez un fichier `.env` à la racine :
-   ```ini
-   DB_NAME=db_operations
-   DB_USER=postgres
-   DB_PASSWORD=root
-   DB_HOST=localhost
-   ```
+### 1. Prérequis
+- Python 3.13 ou supérieur
+- PostgreSQL installé et configuré
+- [uv](https://docs.astral.sh/uv/) installé
 
+### 2. Cloner le projet
+```bash
+git clone <url-du-repo>
+cd Brief-3-Gestion-donnees-et-UI-analytique-polyvalente-Grass-Squad
 ```
+
+### 3. Installer les dépendances
+Utilisez `uv` pour synchroniser l'environnement :
+```bash
+uv sync
+```
+*Alternativement avec pip : `pip install -r requirements.txt`*
+
+### 4. Configuration de la Base de Données
+Créez un fichier `.env` à la racine du projet avec vos identifiants PostgreSQL :
+```ini
+DB_NAME=db_operations
+DB_USER=postgres
+DB_PASSWORD=root
+DB_HOST=localhost
+```
+
+---
+
+## ▶️ Utilisation
+
+### 1. Lancer le Pipeline ETL (Ingestion)
+Chargez les données brutes CSV dans la base de données :
+```bash
+uv run python src/database/load_database.py
+# Ou via le script principal si disponible : uv run python run_pipeline.py
+```
+
+### 2. Démarrer l'Application Streamlit
+Accédez au tableau de bord et aux outils de gestion :
+```bash
+uv run streamlit run src/app/main.py
+```
+
+### 3. Exécuter les Tests
+Lancez la suite de tests pour vérifier la qualité du code :
+```bash
+uv run pytest tests/
+```
+
+---
+
+## 📂 Structure du Projet
+
+```text
 .
 ├── data/
 │   ├── raw/                    # Données brutes source (CSV)
@@ -46,84 +96,35 @@ Le pipeline traite 4 fichiers CSV principaux :
 │   └── rejected/               # Données rejetées lors de la validation
 │
 ├── src/
+│   ├── app/                    # Application Streamlit
+│   │   ├── main.py
+│   │   └── pages/              # Pages (Dashboard, CRUD, Audit)
 │   ├── ingestion/              # Chargement des données brutes
 │   ├── cleaning/               # Transformation et nettoyage
 │   ├── validation/             # Validation avec schémas Pandera
 │   ├── database/               # Scripts SQL et chargement PostgreSQL
-│   ├── crud/                   # Opérations CRUD par table
-│   └── config.py               # Configuration des chemins
+│   ├── crud/                   # Logique métier CRUD et Audit
+│   └── config.py               # Configuration globale
 │
-├── docs/                       # Documentation du projet
 ├── tests/                      # Tests unitaires et d'intégration
-├── run_pipeline.py             # Point d'entrée du pipeline
-└── requirements.txt            # Dépendances Python
+├── docs/                       # Documentation du projet
+├── pyproject.toml              # Configuration uv/python
+└── README.md
 ```
 
-## ⚙️ Fonctionnement du Pipeline
+---
 
-Le pipeline s'exécute en **4 étapes séquentielles** :
+## 🏗️ Architecture et Données
 
-### 1️⃣ **Ingestion**
-- Chargement des 4 fichiers CSV depuis `data/raw/`
-- Lecture avec gestion automatique des encodages
-- Création de DataFrames Pandas
+### Fonctionnement du Pipeline ETL
+Le pipeline s'exécute en 4 étapes séquentielles :
+1. **Ingestion** : Chargement des 4 fichiers CSV depuis `data/raw/` avec gestion des encodages.
+2. **Nettoyage** : Standardisation des types, dates, et normalisation des valeurs.
+3. **Validation** : Vérification stricte des schémas avec **Pandera**. Les données invalides sont rejetées dans `data/rejected/`.
+4. **Chargement PostgreSQL** : Insertion en masse dans le schéma `cross_sec`.
 
-### 2️⃣ **Nettoyage**
-- Standardisation des types de données
-- Conversion des dates et timestamps
-- Normalisation des chaînes de caractères
-- Traitement des valeurs manquantes
-
-### 3️⃣ **Validation**
-- Vérification des schémas avec **Pandera**
-- Contrôle de cohérence des données
-- Séparation des données valides/invalides
-- Export des rejets dans `data/rejected/`
-
-### 4️⃣ **Chargement PostgreSQL**
-- Création automatique des tables et schémas
-- Insertion en masse avec `COPY` (performant)
-- Support des types ENUM PostgreSQL
-- Génération d'une table d'audit
-
-## 🗄️ Schéma de Base de Données
-
-Le schéma PostgreSQL `cross_sec` contient :
-
-### Tables Principales
-
-### 1. Ingestion des Données (ETL)
-Initialisez la base de données et chargez les CSV :
-```bash
-# 1. Cloner le dépôt
-git clone <url-du-repo>
-cd Brief-3-Gestion-donnees-et-UI-analytique-polyvalente-Grass-Squad
-
-# 2. Créer et activer l'environnement virtuel
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# .venv\Scripts\activate   # Windows
-
-# 3. Installer les dépendances
-pip install -r requirements.txt
-```
-
-### 2. Lancer l'Application Streamlit
-Accédez au tableau de bord et aux outils de gestion :
-```bash
-uv run streamlit run src/app/main.py
-```
-
-
-### 3. Exécuter les Tests
-Lancez la suite de tests unitaires et de validation :
-```bash
-uv run pytest tests/
-```
-
-## 📊 Schéma des Données
-
-Le modèle de données est structuré autour des opérations de sauvetage. Voici le diagramme Entité-Relation :
+### Modèle de Données (Schema)
+Le modèle est centré sur les opérations de sauvetage (`bronze_operations`).
 
 ```mermaid
 erDiagram
@@ -134,7 +135,6 @@ erDiagram
         TIMESTAMP date_heure_reception_alerte
         decimal latitude
         decimal longitude
-        INT vent_direction
     }
     bronze_resultats_humain {
         BIGINT operation_id FK
@@ -151,103 +151,22 @@ erDiagram
         BIGINT operation_id FK
         INT nombre_personnes_secourues
         INT nombre_personnes_decedees
-        DATE date
     }
 
     bronze_operations ||--o{ bronze_resultats_humain : "possède"
     bronze_operations ||--o{ bronze_flotteurs : "implique"
-    bronze_operations ||--|| bronze_operations_stats : "stats"
+    bronze_operations ||--o{ bronze_operations_stats : "stats"
 ```
 
-## 🛡️ Audit et Qualité
-
-### Audit (CDC Applicatif)
-Plutôt que d'utiliser des triggers SQL opaques, l'audit est géré au niveau applicatif (Python/Streamlit) pour plus de flexibilité :
-- **Table `logs_audit`** : Enregistre `action_time`, `action_type` (INSERT/UPDATE/DELETE), `user`, et les détails des modifications.
-- **Logique** : La fonction `save_changes` détecte automatiquement les deltas (lignes ajoutées, modifiées, supprimées) lors de l'édition via Streamlit.
-
-### Validation des Données (Pandera)
-Un schéma de validation strict est appliqué aux données critiques :
-- Vérification des types de données.
-- Validation des plages de valeurs (ex: Latitude -90/+90, Direction Vent 0-360).
-- Rejet automatique des fichiers invalides avant ingestion ou traitement.
-
-
-## 📂 Structure du Projet
-
-```
-.
-├── data/                   # Données brutes
-├── src/
-│   ├── app/                # Application Streamlit
-│   │   ├── main.py
-│   │   ├── pages/
-│   │   │   ├── 01_Dashboard.py
-│   │   │   ├── 02_Gestion_Donnees.py
-│   │   │   └── 03_Audit.py
-│   ├── crud/               # Logique métier CRUD et Audit
-│   ├── db/                 # Connexion Base de Données
-│   ├── etl/                # Validation et Nettoyage
-│   │   ├── cleaning.py
-│   │   └── validation.py
-│   ├── ingestion/          # Scripts ETL initiaux
-│   └── database/           # Scripts SQL initiaux
-├── tests/                  # Tests Pytest
-├── pyproject.toml          # Configuration du projet
-└── README.md
-```
-
-### Contrôle Qualité
-
-Les données rejetées sont automatiquement exportées dans `data/rejected/` avec horodatage pour analyse ultérieure.
-
-## 📚 Modules Principaux
-
-### `src/ingestion/load_raw_data.py`
-Charge les 4 sources CSV et retourne un dictionnaire de DataFrames.
-
-### `src/validation/schemas_validation.py`
-Définit les schémas Pandera pour chaque table avec règles de validation strictes.
-
-### `src/cleaning/transformation.py`
-Applique les transformations et normalisations nécessaires avant validation.
-
-### `src/database/load_database.py`
-Gère la connexion PostgreSQL, création de tables et insertion des données.
-
-### `src/crud/`
-Contient les opérations CRUD spécifiques à chaque table pour manipulation après chargement.
-
-## 🧪 Tests
-
-```bash
-# Exécuter tous les tests
-pytest tests/
-
-# Avec couverture de code
-pytest --cov=src tests/
-```
-
-## 🛠️ Technologies Utilisées
-
-| Technologie | Usage |
-|-------------|-------|
-| **Python 3.x** | Langage principal |
-| **Pandas** | Manipulation de données |
-| **Pandera** | Validation de schémas |
-| **PostgreSQL** | Base de données relationnelle |
-| **psycopg2** | Connecteur PostgreSQL |
-| **python-dotenv** | Gestion des variables d'environnement |
-| **pytest** | Framework de tests |
-
-## 👥 Équipe - Grass Squad
-
-Projet réalisé dans le cadre de la formation Data Engineering - Simplon 2025
-
-## 📄 Licence
-
-Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
+### Audit et Logique Applicative
+- **Audit** : Toutes les modifications manuelles via Streamlit sont logguées dans une table `logs_audit` (Action, User, Timestamp, Delta).
+- **Contrôle Qualité** : Les rejets lors de l'ETL sont stockés pour analyse ultérieure.
 
 ---
 
-**Contact** : Pour toute question ou suggestion, veuillez ouvrir une issue sur le dépôt GitHub.
+## 👥 Équipe - Grass Squad
+
+Projet réalisé dans le cadre de la formation **Data Engineering - Simplon 2025**.
+
+## 📄 Licence
+Ce projet est sous licence MIT.
