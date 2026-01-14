@@ -2,7 +2,7 @@ from src.database.load_database import get_connection
 
 def insert_operation(data: dict):
     query = """
-    INSERT INTO cross_sec.operations (
+    INSERT INTO operations (
         operation_id, type_operation, pourquoi_alerte, moyen_alerte,
         qui_alerte, categorie_qui_alerte, cross, departement,
         est_metropolitain, evenement, categorie_evenement,
@@ -36,7 +36,7 @@ def select_operation(operation_id: int):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM cross_sec.operations WHERE operation_id = %s",
+        "SELECT * FROM operations WHERE operation_id = %s",
         (operation_id,)
     )
     result = cur.fetchone()

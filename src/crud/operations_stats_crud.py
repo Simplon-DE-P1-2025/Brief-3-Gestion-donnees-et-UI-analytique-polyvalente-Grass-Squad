@@ -5,7 +5,7 @@ def insert_operations_stats(data: dict):
     placeholders = ", ".join([f"%({k})s" for k in data.keys()])
 
     query = f"""
-    INSERT INTO cross_sec.operations_stats ({cols})
+    INSERT INTO operations_stats ({cols})
     VALUES ({placeholders})
     ON CONFLICT (operation_id) DO NOTHING;
     """

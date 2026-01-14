@@ -2,7 +2,7 @@ from src.database.load_database import get_connection
 
 def insert_flotteur(data: dict):
     query = """
-    INSERT INTO cross_sec.flotteurs (
+    INSERT INTO flotteurs (
         operation_id, numero_ordre, pavillon,
         resultat_flotteur, type_flotteur,
         categorie_flotteur, numero_immatriculation
@@ -24,7 +24,7 @@ def select_flotteurs_by_operation(operation_id: int):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM cross_sec.flotteurs WHERE operation_id = %s",
+        "SELECT * FROM flotteurs WHERE operation_id = %s",
         (operation_id,)
     )
     rows = cur.fetchall()
@@ -37,7 +37,7 @@ def delete_flotteur(operation_id: int, numero_ordre: int):
     cur = conn.cursor()
     cur.execute(
         """
-        DELETE FROM cross_sec.flotteurs
+        DELETE FROM flotteurs
         WHERE operation_id = %s AND numero_ordre = %s
         """,
         (operation_id, numero_ordre)

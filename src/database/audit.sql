@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS cross_sec.audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
     table_name TEXT,
     action TEXT,

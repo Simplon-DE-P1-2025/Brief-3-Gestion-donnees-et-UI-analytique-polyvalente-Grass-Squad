@@ -4,8 +4,10 @@ import sys
 import os
 import streamlit_mermaid as st_mermaid
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from db.database import get_db_connection
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.append(str(PROJECT_ROOT))
 
 st.set_page_config(page_title="Audit & Schema - Grass Squad", page_icon="🛡️", layout="wide")
 

@@ -2,7 +2,7 @@ from src.database.load_database import get_connection
 
 def insert_resultat_humain(data: dict):
     query = """
-    INSERT INTO cross_sec.resultats_humain (
+    INSERT INTO resultats_humain (
         operation_id, categorie_personne,
         resultat_humain, nombre, dont_nombre_blesse
     )

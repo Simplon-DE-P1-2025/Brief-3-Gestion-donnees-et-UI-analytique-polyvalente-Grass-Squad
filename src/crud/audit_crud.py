@@ -2,7 +2,7 @@ from src.database.load_database import get_connection
 
 def log_action(table: str, action: str, record_id: str):
     query = """
-    INSERT INTO cross_sec.audit_log (table_name, action, record_id)
+    INSERT INTO audit_log (table_name, action, record_id)
     VALUES (%s, %s, %s);
     """
     conn = get_connection()
