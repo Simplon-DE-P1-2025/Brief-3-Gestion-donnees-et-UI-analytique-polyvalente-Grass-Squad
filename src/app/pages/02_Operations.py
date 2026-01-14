@@ -13,6 +13,7 @@ from src.crud.operations_crud import insert_operation, delete_operation
 from src.crud.flotteurs_crud import insert_flotteur
 from src.crud.resultat_humain_crud import insert_resultat_humain
 from src.crud.operations_stats_crud import insert_operations_stats
+from src.crud.reference_lists_crud import get_reference_list_values
 
 st.set_page_config(page_title="Gestion des Opérations", page_icon="🚢", layout="wide")
 
@@ -23,6 +24,19 @@ if 'selected_operation_id' not in st.session_state:
     st.session_state.selected_operation_id = None
 
 st.title("🚢 Gestion des Opérations")
+
+# ========================================
+# HELPER: CHARGER LES LISTES DE RÉFÉRENCE
+# ========================================
+@st.cache_data(ttl=300)  # Cache pendant 5 minutes
+def load_reference_list(category):
+    """Charge une liste de référence depuis la DB"""
+    try:
+        values = get_reference_list_values(category, active_only=True)
+        return [None] + [val[1] for val in values]  # Ajouter None pour "Non spécifié"
+    except:
+        # Fallback en cas d'erreur
+        return [None]
 
 # ========================================
 # FONCTION: AFFICHER LA TABLE GRID
@@ -160,9 +174,94 @@ def view_operation(operation_id):
     """Affiche les détails complets d'une opération"""
     st.subheader(f"👁️ Consultation de l'Opération #{operation_id}")
     
-    if st.button("⬅️ Retour à la liste"):
-        st.session_state.action = 'list'
-        st.rerun()
+    # CSS pour les boutons colorés
+    st.markdown("""
+    <style>
+    div[data-testid="column"]:nth-child(3) button {
+        background-color: #28a745 !important;
+        color: white !important;
+        border: 1px solid #28a745 !important;
+    }
+    div[data-testid="column"]:nth-child(3) button:hover {
+        background-color: #218838 !important;
+        border-color: #1e7e34 !important;
+    }
+    div[data-testid="column"]:nth-child(4) button {
+        background-color: #dc3545 !important;
+        color: white !important;
+        border: 1px solid #dc3545 !important;
+    }
+    div[data-testid="column"]:nth-child(4) button:hover {
+        background-color: #c82333 !important;
+        border-color: #bd2130 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Boutons de navigation alignés
+    col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([1.5, 4, 1.5, 1.5])
+    with col_btn1:
+        if st.button("⬅️ Retour à la liste", use_container_width=True):
+            st.session_state.action = 'list'
+            st.rerun()
+    with col_btn3:
+        st.markdown("""
+        <style>
+        button[kind="primary"] {
+            background-color: #28a745 !important;
+            color: white !important;
+            border: 1px solid #28a745 !important;
+        }
+        button[kind="primary"]:hover {
+            background-color: #218838 !important;
+            border-color: #1e7e34 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        if st.button("✏️ Modifier", type="primary", key="btn_modify", use_container_width=True):
+            st.session_state.action = 'edit'
+            st.session_state.selected_operation_id = operation_id
+            st.rerun()
+    with col_btn4:
+        st.markdown("""
+        <style>
+        button[kind="secondary"] {
+            background-color: #dc3545 !important;
+            color: white !important;
+            border: 1px solid #dc3545 !important;
+        }
+        button[kind="secondary"]:hover {
+            background-color: #c82333 !important;
+            border-color: #bd2130 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        if st.button("🗑️ Supprimer", type="secondary", key="btn_delete", use_container_width=True):
+            st.session_state.show_delete_confirmation = True
+    
+    # Modal de confirmation de suppression
+    if st.session_state.get('show_delete_confirmation', False):
+        st.warning(f"⚠️ **Confirmer la suppression de l'opération #{operation_id}**")
+        st.markdown("Cette action est **irréversible** et supprimera également :")
+        st.markdown("- Tous les flotteurs associés")
+        st.markdown("- Tous les résultats humains associés")
+        st.markdown("- Toutes les statistiques associées")
+        
+        col_confirm1, col_confirm2, col_confirm3 = st.columns([1, 1, 3])
+        with col_confirm1:
+            if st.button("✅ Confirmer la suppression", type="primary", key="btn_confirm_delete"):
+                try:
+                    delete_operation(operation_id)
+                    st.success(f"✅ Opération #{operation_id} supprimée avec succès!")
+                    st.session_state.show_delete_confirmation = False
+                    st.session_state.action = 'list'
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la suppression : {e}")
+        with col_confirm2:
+            if st.button("❌ Annuler", key="btn_cancel_delete"):
+                st.session_state.show_delete_confirmation = False
+                st.rerun()
     
     try:
         # Récupérer les données de l'opération
@@ -262,9 +361,15 @@ def create_operation():
             st.number_input("ID Opération", value=next_operation_id, disabled=True, 
                           help="Auto-généré - Prochain ID disponible")
         with col2:
-            cross = st.text_input("CROSS*", placeholder="Ex: Med", help="Obligatoire")
+            cross_options = load_reference_list('cross')
+            cross = st.selectbox("CROSS*", cross_options,
+                                format_func=lambda x: "Sélectionner..." if x is None else x,
+                                help="Obligatoire")
         with col3:
-            type_operation = st.text_input("Type d'opération", placeholder="Ex: SAR", max_chars=3)
+            type_operation_options = load_reference_list('type_operation')
+            type_operation = st.selectbox("Type d'opération", type_operation_options,
+                                         format_func=lambda x: "Non spécifié" if x is None else x,
+                                         help="SAR: vie humaine en danger, MAS: assistance navires, SUR: sûreté, POL: pollutions, DIV: autres")
         with col4:
             pass
         
@@ -274,7 +379,7 @@ def create_operation():
             heure_alerte = st.time_input("Heure de l'alerte*", value=datetime.now().time(), help="Obligatoire")
         with col2:
             date_fin = st.date_input("Date de fin", value=None)
-            heure_fin = st.time_input("Heure de fin", value=None) if date_fin else None
+            heure_fin = st.time_input("Heure de fin", value=None)
         with col3:
             pass
         
@@ -331,14 +436,17 @@ def create_operation():
         col1, col2 = st.columns(2)
         with col1:
             st.caption("🌬️ Vent")
-            vent_direction = st.number_input("Direction (degrés)", min_value=0.0, max_value=360.0, value=0.0, format="%.2f",
+            vent_direction = st.number_input("Direction (degrés)", min_value=0, max_value=360, value=0, step=1,
                                             help="0-360° (0=Nord, 90=Est, 180=Sud, 270=Ouest)")
-            vent_direction_categorie = st.text_input("Direction (cardinal)", placeholder="Ex: Nord, Sud-Ouest, NNE")
-            vent_force = st.number_input("Force (Beaufort ou m/s)", min_value=0.0, value=0.0, format="%.2f")
+            vent_direction_options = load_reference_list('vent_direction_categorie')
+            vent_direction_categorie = st.selectbox("Direction (cardinal)", vent_direction_options,
+                                                   format_func=lambda x: "Non spécifié" if x is None else x)
+            vent_force = st.number_input("Force (Beaufort)", min_value=0, max_value=12, value=0, step=1,
+                                        help="Échelle de Beaufort: 0-12")
         with col2:
             st.caption("🌊 Mer")
-            mer_force = st.number_input("État de la mer", min_value=0.0, value=0.0, format="%.2f",
-                                       help="Échelle Douglas (0-9)")
+            mer_force = st.number_input("État de la mer (Douglas)", min_value=0, max_value=9, value=0, step=1,
+                                       help="Échelle Douglas: 0-9")
         
         # ===========================================
         # SECTION 6: AUTORITÉS IMPLIQUÉES
@@ -363,63 +471,132 @@ def create_operation():
         with col2:
             cross_sitrep = st.text_input("CROSS SITREP", placeholder="Ex: Med-SITREP-2024-001")
         with col3:
-            systeme_source = st.text_input("Système source", placeholder="Ex: SPATIONAV, SNSM-OS")
+            systeme_source_options = load_reference_list('systeme_source')
+            systeme_source = st.selectbox("Système source", systeme_source_options,
+                                         format_func=lambda x: "Non spécifié" if x is None else x)
         
         st.divider()
         
         # ===========================================
-        # SECTION 8: FLOTTEUR (OPTIONNEL)
+        # SECTION 8: FLOTTEUR (OPTIONNEL - EXPANDER)
         # ===========================================
-        st.markdown("### ⛵ Flotteur impliqué")
-        add_flotteur = st.checkbox("➕ Ajouter un flotteur à cette opération")
-        
-        if add_flotteur:
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                pavillon = st.text_input("Pavillon", placeholder="Ex: France, Italie")
-            with col2:
-                type_flotteur = st.text_input("Type", placeholder="Ex: Voilier, Chalutier")
-            with col3:
-                resultat_flotteur = st.selectbox("Résultat", ["", "Récupéré", "Perdu", "Coulé", "Assisté"])
-            with col4:
-                numero_immat = st.text_input("N° immatriculation", placeholder="Ex: ABC123")
-        
-        st.divider()
-        
-        # ===========================================
-        # SECTION 9: RÉSULTATS HUMAINS (OPTIONNEL)
-        # ===========================================
-        st.markdown("### 👥 Résultats humains")
-        add_humain = st.checkbox("➕ Ajouter des résultats humains à cette opération")
-        
-        if add_humain:
+        with st.expander("⛵ Flotteur impliqué (optionnel)", expanded=False):
+            st.markdown("*Remplir les informations du flotteur (si applicable)*")
             col1, col2, col3 = st.columns(3)
             with col1:
-                categorie_personne = st.text_input("Catégorie", placeholder="Ex: Plaisancier, Pêcheur, Passager")
+                pavillon_options = load_reference_list('pavillon')
+                pavillon = st.selectbox("Pavillon", pavillon_options,
+                                       format_func=lambda x: "Non spécifié" if x is None else x)
+                type_flotteur = st.text_input("Type de flotteur", placeholder="Ex: Voilier, Chalutier, Planche à voile")
             with col2:
-                resultat_humain = st.selectbox("Résultat", ["", "Secouru", "Décédé", "Blessé", "Sain et sauf", "Disparu"])
+                categorie_flotteur_options = load_reference_list('categorie_flotteur')
+                categorie_flotteur = st.selectbox("Catégorie", categorie_flotteur_options,
+                                                 format_func=lambda x: "Non spécifié" if x is None else x)
+                resultat_flotteur_options = load_reference_list('resultat_flotteur')
+                resultat_flotteur = st.selectbox("Résultat", resultat_flotteur_options,
+                    format_func=lambda x: "Non spécifié" if x is None else x)
             with col3:
-                nombre = st.number_input("Nombre de personnes", min_value=0, value=1)
-        
-        st.divider()
+                numero_immat = st.text_input("N° immatriculation", placeholder="Ex: ABC123")
+                numero_ordre = st.number_input("Numéro d'ordre", min_value=1, value=1, help="Ordre du flotteur dans l'opération")
+            
+            add_flotteur = bool(pavillon or type_flotteur or categorie_flotteur or resultat_flotteur or numero_immat)
         
         # ===========================================
-        # SECTION 10: STATISTIQUES (OPTIONNEL)
+        # SECTION 9: RÉSULTATS HUMAINS (OPTIONNEL - EXPANDER)
         # ===========================================
-        st.markdown("### 📊 Statistiques de l'opération")
-        add_stats = st.checkbox("➕ Ajouter des statistiques à cette opération")
+        with st.expander("👥 Résultats humains (optionnel)", expanded=False):
+            st.markdown("*Remplir les résultats humains de l'opération (si applicable)*")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                categorie_personne_options = load_reference_list('categorie_personne')
+                categorie_personne = st.selectbox("Catégorie de personne", categorie_personne_options,
+                    format_func=lambda x: "Non spécifié" if x is None else x)
+            with col2:
+                resultat_humain_options = load_reference_list('resultat_humain')
+                resultat_humain = st.selectbox("Résultat", resultat_humain_options,
+                    format_func=lambda x: "Non spécifié" if x is None else x)
+            with col3:
+                nombre = st.number_input("Nombre de personnes", min_value=0, value=0)
+            with col4:
+                dont_nombre_blesse = st.number_input("Dont blessés", min_value=0, value=0, help="Nombre de blessés parmi les personnes")
+            
+            add_humain = bool(categorie_personne or resultat_humain or nombre > 0)
         
-        if add_stats:
-            st.caption("Bilan global de l'opération")
+        # ===========================================
+        # SECTION 10: STATISTIQUES (OPTIONNEL - EXPANDER)
+        # ===========================================
+        with st.expander("📊 Statistiques de l'opération (optionnel)", expanded=False):
+            st.markdown("*Remplir les statistiques détaillées de l'opération (si applicable)*")
+            
+            st.markdown("##### 👥 Personnes impliquées")
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 nb_impliques = st.number_input("Nb impliqués", min_value=0, value=0, help="Personnes impliquées")
-            with col2:
                 nb_secourues = st.number_input("Nb secourus", min_value=0, value=0, help="Personnes secourues")
+                nb_assistees = st.number_input("Nb assistées", min_value=0, value=0, help="Personnes assistées")
+            with col2:
+                nb_deces = st.number_input("Nb décès", min_value=0, value=0, help="Total décès")
+                nb_deces_accidentel = st.number_input("Dont accidentels", min_value=0, value=0, help="Décès accidentels")
+                nb_deces_naturel = st.number_input("Dont naturels", min_value=0, value=0, help="Décès naturels")
             with col3:
-                nb_deces = st.number_input("Nb décès", min_value=0, value=0, help="Nombre de décès")
-            with col4:
                 nb_blesses = st.number_input("Nb blessés", min_value=0, value=0, help="Nombre de blessés")
+                nb_disparues = st.number_input("Nb disparus", min_value=0, value=0, help="Personnes disparues")
+                nb_retrouvees = st.number_input("Nb retrouvées", min_value=0, value=0, help="Personnes retrouvées")
+            with col4:
+                nb_tirees_affaire = st.number_input("Tirées d'affaire seules", min_value=0, value=0)
+                nb_fausse_alerte = st.number_input("Fausse alerte", min_value=0, value=0)
+                nb_deces_disparues = st.number_input("Décès ou disparus", min_value=0, value=0)
+            
+            st.markdown("##### 🚤 Informations flotteurs")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                nb_flotteurs_commerce = st.number_input("Commerce", min_value=0, value=0)
+                nb_flotteurs_peche = st.number_input("Pêche", min_value=0, value=0)
+            with col2:
+                nb_flotteurs_plaisance = st.number_input("Plaisance", min_value=0, value=0)
+                nb_flotteurs_loisirs = st.number_input("Loisirs nautiques", min_value=0, value=0)
+            with col3:
+                nb_aeronefs = st.number_input("Aéronefs", min_value=0, value=0)
+                nb_flotteurs_autre = st.number_input("Autre", min_value=0, value=0)
+            with col4:
+                st.caption("Détails plaisance")
+                nb_plaisance_voile = st.number_input("Voile", min_value=0, value=0)
+                nb_plaisance_moteur = st.number_input("Moteur", min_value=0, value=0)
+            
+            st.markdown("##### 🌊 Contexte et localisation")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                concerne_plongee = st.checkbox("Concerne la plongée")
+                implique_wingfoil = st.checkbox("Implique wingfoil")
+                avec_clandestins = st.checkbox("Avec clandestins")
+            with col2:
+                est_dans_stm = st.checkbox("Dans STM (Séparation du Trafic Maritime)")
+                nom_stm = st.text_input("Nom STM", placeholder="Ex: Ouessant")
+            with col3:
+                est_dans_dst = st.checkbox("Dans DST (Dispositif de Séparation du Trafic)")
+                nom_dst = st.text_input("Nom DST", placeholder="Ex: Pas-de-Calais")
+            with col4:
+                distance_cote_metres = st.number_input("Distance côte (m)", min_value=0, value=0)
+                distance_cote_milles = st.number_input("Distance côte (NM)", min_value=0.0, value=0.0, format="%.2f")
+            
+            st.markdown("##### 🌊 Marée et contexte")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                maree_port = st.text_input("Port de marée", placeholder="Ex: Brest, Le Havre")
+            with col2:
+                maree_coefficient = st.number_input("Coefficient", min_value=20, max_value=120, value=70,
+                                                   help="Coefficient de marée: 20-120")
+            with col3:
+                maree_categorie_options = load_reference_list('maree_categorie')
+                maree_categorie = st.selectbox("Catégorie marée", maree_categorie_options,
+                                              format_func=lambda x: "Non spécifié" if x is None else x)
+            with col4:
+                prefecture_maritime_options = load_reference_list('prefecture_maritime')
+                prefecture_maritime = st.selectbox("Préfecture maritime", prefecture_maritime_options,
+                                                  format_func=lambda x: "Non spécifié" if x is None else x)
+            
+            add_stats = bool(nb_impliques > 0 or nb_secourues > 0 or nb_deces > 0 or nb_blesses > 0 or 
+                           nb_flotteurs_commerce > 0 or nb_flotteurs_peche > 0 or nb_flotteurs_plaisance > 0)
         
         st.divider()
         
@@ -469,34 +646,116 @@ def create_operation():
                         if operation_id:
                             st.success(f"✅ Opération créée ! ID: {operation_id}")
                             
-                            if add_flotteur and pavillon:
+                            if add_flotteur:
                                 flotteur_data = {
                                     "operation_id": operation_id,
-                                    "pavillon": pavillon,
-                                    "type_flotteur": type_flotteur if type_flotteur else None,
-                                    "resultat_flotteur": resultat_flotteur if resultat_flotteur else None,
+                                    "numero_ordre": numero_ordre,
+                                    "pavillon": pavillon if pavillon else None,
+                                    "type_flotteur": type_flotteur if type_flotteur else "Non spécifié",
+                                    "categorie_flotteur": categorie_flotteur if categorie_flotteur else "Non spécifié",
+                                    "resultat_flotteur": resultat_flotteur if resultat_flotteur else "Non spécifié",
                                     "numero_immatriculation": numero_immat if numero_immat else None,
                                 }
                                 insert_flotteur(flotteur_data)
                                 st.success("✅ Flotteur ajouté")
                             
-                            if add_humain and categorie_personne:
+                            if add_humain:
                                 humain_data = {
                                     "operation_id": operation_id,
-                                    "categorie_personne": categorie_personne,
-                                    "resultat_humain": resultat_humain if resultat_humain else None,
+                                    "categorie_personne": categorie_personne if categorie_personne else "Non spécifié",
+                                    "resultat_humain": resultat_humain if resultat_humain else "Non spécifié",
                                     "nombre": nombre,
+                                    "dont_nombre_blesse": dont_nombre_blesse if dont_nombre_blesse else 0,
                                 }
                                 insert_resultat_humain(humain_data)
                                 st.success("✅ Résultat humain ajouté")
                             
                             if add_stats:
+                                from datetime import date as date_type
+                                operation_date = date_alerte
+                                
                                 stats_data = {
                                     "operation_id": operation_id,
-                                    "nombre_personnes_impliquees": nb_impliques,
-                                    "nombre_personnes_secourues": nb_secourues,
-                                    "nombre_personnes_tous_deces": nb_deces,
+                                    "date": operation_date,
+                                    "annee": operation_date.year,
+                                    "mois": operation_date.month,
+                                    "jour": operation_date.day,
+                                    "mois_texte": operation_date.strftime("%B"),
+                                    "semaine": operation_date.isocalendar()[1],
+                                    "annee_semaine": f"{operation_date.year}-W{operation_date.isocalendar()[1]:02d}",
+                                    "jour_semaine": operation_date.strftime("%A"),
+                                    "est_weekend": operation_date.weekday() >= 5,
+                                    "est_jour_ferie": False,
+                                    "est_vacances_scolaires": None,
+                                    "phase_journee": None,
+                                    "concerne_plongee": concerne_plongee,
+                                    "implique_wingfoil": implique_wingfoil,
+                                    "avec_clandestins": avec_clandestins,
+                                    "distance_cote_metres": distance_cote_metres if distance_cote_metres > 0 else None,
+                                    "distance_cote_milles_nautiques": distance_cote_milles if distance_cote_milles > 0 else None,
+                                    "est_dans_stm": est_dans_stm,
+                                    "nom_stm": nom_stm if nom_stm else None,
+                                    "est_dans_dst": est_dans_dst,
+                                    "nom_dst": nom_dst if nom_dst else None,
+                                    "prefecture_maritime": prefecture_maritime if prefecture_maritime else None,
+                                    "maree_port": maree_port if maree_port else None,
+                                    "maree_coefficient": maree_coefficient if maree_coefficient else None,
+                                    "maree_categorie": maree_categorie if maree_categorie else None,
+                                    
+                                    # Indicateurs humains
                                     "nombre_personnes_blessees": nb_blesses,
+                                    "nombre_personnes_assistees": nb_assistees,
+                                    "nombre_personnes_decedees": nb_deces,
+                                    "nombre_personnes_decedees_accidentellement": nb_deces_accidentel,
+                                    "nombre_personnes_decedees_naturellement": nb_deces_naturel,
+                                    "nombre_personnes_disparues": nb_disparues,
+                                    "nombre_personnes_impliquees_dans_fausse_alerte": nb_fausse_alerte,
+                                    "nombre_personnes_retrouvees": nb_retrouvees,
+                                    "nombre_personnes_secourues": nb_secourues,
+                                    "nombre_personnes_tirees_daffaire_seule": nb_tirees_affaire,
+                                    "nombre_personnes_tous_deces": nb_deces,
+                                    "nombre_personnes_tous_deces_ou_disparues": nb_deces_disparues,
+                                    "nombre_personnes_impliquees": nb_impliques,
+                                    
+                                    # Sans clandestins (mêmes valeurs si pas de clandestins)
+                                    "nombre_personnes_blessees_sans_clandestins": nb_blesses if not avec_clandestins else 0,
+                                    "nombre_personnes_assistees_sans_clandestins": nb_assistees if not avec_clandestins else 0,
+                                    "nombre_personnes_decedees_sans_clandestins": nb_deces if not avec_clandestins else 0,
+                                    "nombre_personnes_decedees_accidentellement_sans_clandestins": nb_deces_accidentel if not avec_clandestins else 0,
+                                    "nombre_personnes_decedees_naturellement_sans_clandestins": nb_deces_naturel if not avec_clandestins else 0,
+                                    "nombre_personnes_disparues_sans_clandestins": nb_disparues if not avec_clandestins else 0,
+                                    "nombre_personnes_impliquees_dans_fausse_alerte_sans_clandestins": nb_fausse_alerte if not avec_clandestins else 0,
+                                    "nombre_personnes_retrouvees_sans_clandestins": nb_retrouvees if not avec_clandestins else 0,
+                                    "nombre_personnes_secourues_sans_clandestins": nb_secourues if not avec_clandestins else 0,
+                                    "nombre_personnes_tirees_daffaire_seule_sans_clandestins": nb_tirees_affaire if not avec_clandestins else 0,
+                                    "nombre_personnes_tous_deces_sans_clandestins": nb_deces if not avec_clandestins else 0,
+                                    "nombre_personnes_tous_deces_ou_disparues_sans_clandestins": nb_deces_disparues if not avec_clandestins else 0,
+                                    "nombre_personnes_impliquees_sans_clandestins": nb_impliques if not avec_clandestins else 0,
+                                    
+                                    # Flotteurs
+                                    "nombre_flotteurs_commerce_impliques": nb_flotteurs_commerce,
+                                    "nombre_flotteurs_peche_impliques": nb_flotteurs_peche,
+                                    "nombre_flotteurs_plaisance_impliques": nb_flotteurs_plaisance,
+                                    "nombre_flotteurs_loisirs_nautiques_impliques": nb_flotteurs_loisirs,
+                                    "nombre_aeronefs_impliques": nb_aeronefs,
+                                    "nombre_flotteurs_autre_impliques": nb_flotteurs_autre,
+                                    "nombre_flotteurs_annexe_impliques": 0,
+                                    "nombre_flotteurs_autre_loisir_nautique_impliques": 0,
+                                    "nombre_flotteurs_canoe_kayak_aviron_impliques": 0,
+                                    "nombre_flotteurs_engin_de_plage_impliques": 0,
+                                    "nombre_flotteurs_kitesurf_impliques": 0,
+                                    "nombre_flotteurs_plaisance_voile_legere_impliques": 0,
+                                    "nombre_flotteurs_plaisance_a_moteur_impliques": nb_plaisance_moteur,
+                                    "nombre_flotteurs_plaisance_a_moteur_moins_8m_impliques": 0,
+                                    "nombre_flotteurs_plaisance_a_moteur_plus_8m_impliques": 0,
+                                    "nombre_flotteurs_plaisance_a_voile_impliques": nb_plaisance_voile,
+                                    "nombre_flotteurs_planche_a_voile_impliques": 0,
+                                    "nombre_flotteurs_ski_nautique_impliques": 0,
+                                    "nombre_flotteurs_surf_impliques": 0,
+                                    "nombre_flotteurs_vehicule_nautique_a_moteur_impliques": 0,
+                                    
+                                    # Sans flotteur
+                                    "sans_flotteur_implique": not add_flotteur,
                                 }
                                 insert_operations_stats(stats_data)
                                 st.success("✅ Statistiques ajoutées")
@@ -664,12 +923,21 @@ def edit_operation(operation_id):
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         numero_ordre = st.number_input("Numéro d'ordre", min_value=1, value=1)
-                        pavillon = st.text_input("Pavillon", placeholder="France")
+                        pavillon_options_edit = load_reference_list('pavillon')
+                        pavillon = st.selectbox("Pavillon", pavillon_options_edit,
+                                              format_func=lambda x: "Non spécifié" if x is None else x,
+                                              key="edit_pavillon")
                     with col2:
                         type_flotteur = st.text_input("Type", placeholder="Voilier")
-                        categorie_flotteur = st.text_input("Catégorie", placeholder="Plaisance")
+                        categorie_flotteur_options_edit = load_reference_list('categorie_flotteur')
+                        categorie_flotteur = st.selectbox("Catégorie", categorie_flotteur_options_edit,
+                                                        format_func=lambda x: "Non spécifié" if x is None else x,
+                                                        key="edit_categorie_flotteur")
                     with col3:
-                        resultat_flotteur = st.text_input("Résultat", placeholder="Récupéré")
+                        resultat_flotteur_options_edit = load_reference_list('resultat_flotteur')
+                        resultat_flotteur = st.selectbox("Résultat", resultat_flotteur_options_edit,
+                                                       format_func=lambda x: "Non spécifié" if x is None else x,
+                                                       key="edit_resultat_flotteur")
                         numero_immat = st.text_input("N° immatriculation", placeholder="ABC123")
                     
                     if st.form_submit_button("➕ Ajouter le flotteur", type="primary"):
