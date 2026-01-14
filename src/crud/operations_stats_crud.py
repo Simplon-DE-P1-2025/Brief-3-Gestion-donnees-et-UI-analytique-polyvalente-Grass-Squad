@@ -1,4 +1,4 @@
-from src.database.load_database import get_connection
+from src.database.load_database import get_db_connection
 
 def insert_operations_stats(data: dict):
     cols = ", ".join(data.keys())
@@ -10,7 +10,7 @@ def insert_operations_stats(data: dict):
     ON CONFLICT (operation_id) DO NOTHING;
     """
 
-    conn = get_connection()
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(query, data)
     conn.commit()

@@ -8,21 +8,20 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
-from src.database.load_database import get_db_connection
+from src.database.load_database import engine
 
 st.set_page_config(page_title="Dashboard - Grass Squad", page_icon="📊", layout="wide")
 
-st.title("📊 Operational Dashboard")
+st.title("📊 Dashboard Opérationnel")
 
 try:
-    conn = get_db_connection()
+    db_info = pd.read_sql("SELECT current_database(), inet_server_addr(), inet_server_port();", engine)
+    st.success(f"✅ Connecté à la base : {db_info['current_database'][0]}")
     
-    db_info = pd.read_sql("SELECT current_database(), inet_server_addr(), inet_server_port();", conn)
-    st.warning(f"Connecté à la base : {db_info['current_database'][0]} sur le serveur IP : {db_info['inet_server_addr'][0]}")
     # --------------------------
     # KPIs
     # --------------------------
-    st.subheader("Key Performance Indicators (KPIs)")
+    st.subheader("📈 Indicateurs Clés de Performance (KPIs)")
     
     # We aggregate data from operations_stats for people statistics
     query_stats = """
@@ -34,7 +33,7 @@ try:
     FROM operations_stats
     """
     
-    df_stats = pd.read_sql(query_stats, conn)
+    df_stats = pd.read_sql(query_stats, engine)
     
     if not df_stats.empty:
         col1, col2, col3, col4 = st.columns(4)
@@ -49,18 +48,18 @@ try:
         if total_involved > 0:
             success_rate = (total_saved / total_involved) * 100
         
-        col1.metric("Total Operations", f"{total_ops:,}")
-        col2.metric("Total People Involved", f"{total_involved:,}")
-        col3.metric("Total Saved", f"{total_saved:,}")
-        col4.metric("Success Rate", f"{success_rate:.2f}%")
+        col1.metric("🚢 Total Opérations", f"{total_ops:,}")
+        col2.metric("👥 Personnes Impliquées", f"{total_involved:,}")
+        col3.metric("✅ Personnes Secourues", f"{total_saved:,}")
+        col4.metric("📊 Taux de Réussite", f"{success_rate:.2f}%")
         
     else:
-        st.info("No stats data available.")
+        st.info("Aucune donnée statistique disponible.")
 
     # --------------------------
-    # Map
+    # Carte
     # --------------------------
-    st.subheader("Operational Map")
+    st.subheader("🗺️ Carte des Opérations")
     
     # Get coordinates for map
     query_map = """
@@ -69,14 +68,12 @@ try:
     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
     LIMIT 1000
     """
-    df_map = pd.read_sql(query_map, conn)
+    df_map = pd.read_sql(query_map, engine)
     
     if not df_map.empty:
         st.map(df_map)
     else:
-        st.info("No GPS data available for map.")
-        
-    conn.close()
+        st.info("Aucune donnée GPS disponible pour la carte.")
 
 except Exception as e:
-    st.error(f"Error loading dashboard: {e}")
+    st.error(f"❌ Erreur lors du chargement du dashboard : {e}")
