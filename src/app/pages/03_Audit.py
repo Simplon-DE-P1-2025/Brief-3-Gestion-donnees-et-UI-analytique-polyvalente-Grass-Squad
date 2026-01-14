@@ -9,6 +9,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
+from src.database.load_database import get_db_connection
+
 st.set_page_config(page_title="Audit & Schema - Grass Squad", page_icon="🛡️", layout="wide")
 
 st.title("🛡️ Audit & System Documentation")
@@ -25,7 +27,7 @@ with tab1:
         # Verify if table exists first (in case it wasn't created yet)
         # We can just try selecting
         try:
-            df_audit = pd.read_sql("SELECT * FROM logs_audit ORDER BY action_time DESC LIMIT 200", conn)
+            df_audit = pd.read_sql("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 200", conn)
             st.dataframe(df_audit, use_container_width=True)
         except Exception as e:
             st.warning("Audit table might not exist yet or is empty.")

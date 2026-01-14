@@ -9,6 +9,7 @@ import psycopg2
 from dotenv import load_dotenv
 from io import StringIO
 import pandas as pd
+from sqlalchemy import create_engine
 
 # Ajouter le répertoire parent au path pour importer src
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -30,6 +31,11 @@ DB_CONFIG = {
 }
 
 SQL_SCRIPT_PATH = PROJECT_ROOT / "src" / "database" / "database.sql"
+
+# Créer l'engine SQLAlchemy pour les opérations CRUD
+engine = create_engine(
+    f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+)
 
 
 def get_db_connection(config=DB_CONFIG):

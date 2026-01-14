@@ -6,18 +6,17 @@ import os
 
 # Ensure we can import db
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from src.db.database import get_db_connection, engine
+from src.database.load_database import get_db_connection, engine
 
 def ensure_audit_table_exists():
     """Creates the audit table if it doesn't exist."""
     create_table_sql = """
-    CREATE TABLE IF NOT EXISTS logs_audit (
+    CREATE TABLE IF NOT EXISTS audit_log (
         id SERIAL PRIMARY KEY,
-        action_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        action_type VARCHAR(50),
-        table_name VARCHAR(100),
-        user_name VARCHAR(100),
-        details TEXT
+        table_name TEXT,
+        action TEXT,
+        record_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """
     with engine.connect() as conn:
@@ -74,9 +73,9 @@ def save_changes(original_df: pd.DataFrame, edited_df: pd.DataFrame, table_name:
                     
                 # Audit
                 conn.execute(text("""
-                    INSERT INTO logs_audit (action_time, action_type, table_name, user_name, details)
-                    VALUES (NOW(), 'DELETE', :table, :user, :details)
-                """), {"table": table_name, "user": user, "details": f"Deleted IDs: {deleted_ids}"})
+                    INSERT INTO audit_log (table_name, action, record_id)
+                    VALUES (:table, 'DELETE', :details)
+                """), {"table": table_name, "details": f"Deleted IDs: {deleted_ids}"})
 
             # INSERT
             if added_ids:
@@ -96,9 +95,9 @@ def save_changes(original_df: pd.DataFrame, edited_df: pd.DataFrame, table_name:
                 # If index has name 'operation_id', pandas to_sql uses it as column if index=True.
                 
                 conn.execute(text("""
-                    INSERT INTO logs_audit (action_time, action_type, table_name, user_name, details)
-                    VALUES (NOW(), 'INSERT', :table, :user, :details)
-                """), {"table": table_name, "user": user, "details": f"Inserted IDs: {added_ids}"})
+                    INSERT INTO audit_log (table_name, action, record_id)
+                    VALUES (:table, 'INSERT', :details)
+                """), {"table": table_name, "details": f"Inserted IDs: {added_ids}"})
 
             # UPDATE
             if updated_ids:
@@ -126,9 +125,9 @@ def save_changes(original_df: pd.DataFrame, edited_df: pd.DataFrame, table_name:
                     conn.execute(text(full_q), params)
                 
                 conn.execute(text("""
-                    INSERT INTO logs_audit (action_time, action_type, table_name, user_name, details)
-                    VALUES (NOW(), 'UPDATE', :table, :user, :details)
-                """), {"table": table_name, "user": user, "details": f"Updated IDs: {updated_ids}"})
+                    INSERT INTO audit_log (table_name, action, record_id)
+                    VALUES (:table, 'UPDATE', :details)
+                """), {"table": table_name, "details": f"Updated IDs: {updated_ids}"})
                 
             transaction.commit()
             return True, f"Success: +{len(added_ids)} rows, -{len(deleted_ids)} rows, ~{len(updated_ids)} rows."

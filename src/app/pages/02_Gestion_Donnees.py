@@ -8,8 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
 from src.database.load_database import get_db_connection
-
-from crud.operations import save_changes
+from src.crud.operations import save_changes
 
 st.set_page_config(page_title="Gestion Données - Grass Squad", page_icon="📝", layout="wide")
 
