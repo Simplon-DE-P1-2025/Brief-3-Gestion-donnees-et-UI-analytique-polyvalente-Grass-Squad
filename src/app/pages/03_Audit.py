@@ -9,69 +9,84 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
-from src.database.load_database import get_db_connection
+from src.database.load_database import engine
 
 st.set_page_config(page_title="Audit & Schema - Grass Squad", page_icon="🛡️", layout="wide")
 
-st.title("🛡️ Audit & System Documentation")
+st.title("🛡️ Audit & Documentation Système")
 
-tab1, tab2 = st.tabs(["📜 Logs Audit", "🗂️ Data Schema (ERD)"])
+tab1, tab2 = st.tabs(["📜 Logs d'Audit", "🗂️ Schéma de Données (ERD)"])
 
 with tab1:
-    st.subheader("Database Changes Log")
-    if st.button("Refresh Logs"):
-        st.session_state.get('refresh_logs', True)
+    st.subheader("📋 Historique des Modifications")
+    if st.button("🔄 Rafraîchir les Logs"):
+        st.rerun()
 
     try:
-        conn = get_db_connection()
         # Verify if table exists first (in case it wasn't created yet)
-        # We can just try selecting
         try:
-            df_audit = pd.read_sql("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 200", conn)
-            st.dataframe(df_audit, use_container_width=True)
+            df_audit = pd.read_sql("SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 200", engine)
+            
+            if len(df_audit) > 0:
+                st.dataframe(df_audit, use_container_width=True, hide_index=True)
+                st.info(f"📊 {len(df_audit)} log(s) affiché(s)")
+            else:
+                st.info("Aucun log d'audit trouvé")
         except Exception as e:
-            st.warning("Audit table might not exist yet or is empty.")
+            st.warning("La table d'audit n'existe pas encore ou est vide.")
             st.error(str(e))
-        conn.close()
     except Exception as e:
-        st.error(f"Connection error: {e}")
+        st.error(f"❌ Erreur de connexion : {e}")
 
 with tab2:
-    st.subheader("Entity Relationship Diagram (ERD)")
+    st.subheader("📊 Diagramme Entités-Relations (ERD)")
+    st.info("💡 Ce diagramme représente la structure complète de la base de données SECMAR")
     
     # We define the mermaid graph roughly based on create_bronze_tables.sql
     mermaid_code = """
     erDiagram
+        operations ||--o{ flotteurs : "a"
+        operations ||--o{ resultats_humain : "a"
+        operations ||--o{ operations_stats : "a"
+        
         operations {
-            BIGINT operation_id PK
-            VARCHAR type_operation
+            SERIAL operation_id PK
+            VARCHAR cross "NOT NULL"
+            TIMESTAMP date_heure_reception_alerte "NOT NULL"
+            VARCHAR evenement
+            VARCHAR departement
+            FLOAT latitude
+            FLOAT longitude
             VARCHAR pourquoi_alerte
-            TIMESTAMP date_heure_reception_alerte
-            decimal latitude
-            decimal longitude
-            INT vent_direction
         }
-        resultats_humain {
-            BIGINT operation_id FK
-            VARCHAR category_personne
-            VARCHAR result_humain
-            BIGINT nombre
-        }
+        
         flotteurs {
-            BIGINT operation_id FK
-            VARCHAR type_flotteur
+            SERIAL flotteur_id PK
+            INTEGER operation_id FK
             VARCHAR pavillon
+            VARCHAR type_flotteur
+            VARCHAR resultat_flotteur
+            VARCHAR numero_immatriculation
+            FLOAT longueur
+            FLOAT largeur
         }
+        
+        resultats_humain {
+            SERIAL resultat_humain_id PK
+            INTEGER operation_id FK
+            VARCHAR categorie_personne
+            VARCHAR resultat_humain
+            INTEGER nombre
+        }
+        
         operations_stats {
-            BIGINT operation_id FK
-            INT nombre_personnes_secourues
-            INT nombre_personnes_decedees
-            DATE date
+            SERIAL stat_id PK
+            INTEGER operation_id FK
+            INTEGER nombre_personnes_impliquees
+            INTEGER nombre_personnes_secourues
+            INTEGER nombre_personnes_tous_deces
+            INTEGER nombre_personnes_blessees
         }
-
-        operations ||--o{ resultats_humain : "has"
-        operations ||--o{ flotteurs : "involves"
-        operations ||--|| operations_stats : "stats"
     """
     
-    st_mermaid.st_mermaid(mermaid_code, height=500)
+    st_mermaid.st_mermaid(mermaid_code, height=600)

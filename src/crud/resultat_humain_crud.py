@@ -1,4 +1,4 @@
-from src.database.load_database import get_connection
+from src.database.load_database import get_db_connection
 
 def insert_resultat_humain(data: dict):
     query = """
@@ -12,7 +12,7 @@ def insert_resultat_humain(data: dict):
         %(dont_nombre_blesse)s
     );
     """
-    conn = get_connection()
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(query, data)
     conn.commit()

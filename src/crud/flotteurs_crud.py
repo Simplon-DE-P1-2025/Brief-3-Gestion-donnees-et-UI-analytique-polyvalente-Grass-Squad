@@ -1,4 +1,4 @@
-from src.database.load_database import get_connection
+from src.database.load_database import get_db_connection
 
 def insert_flotteur(data: dict):
     query = """
@@ -13,7 +13,7 @@ def insert_flotteur(data: dict):
         %(categorie_flotteur)s, %(numero_immatriculation)s
     );
     """
-    conn = get_connection()
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(query, data)
     conn.commit()
@@ -21,7 +21,7 @@ def insert_flotteur(data: dict):
     conn.close()
 
 def select_flotteurs_by_operation(operation_id: int):
-    conn = get_connection()
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
         "SELECT * FROM flotteurs WHERE operation_id = %s",
@@ -33,7 +33,7 @@ def select_flotteurs_by_operation(operation_id: int):
     return rows
 
 def delete_flotteur(operation_id: int, numero_ordre: int):
-    conn = get_connection()
+    conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
         """

@@ -187,3 +187,15 @@ CREATE INDEX idx_operations_stats_date ON operations_stats(date);
 CREATE INDEX idx_operations_stats_annee ON operations_stats(annee);
 CREATE INDEX idx_operations_stats_phase_journee ON operations_stats(phase_journee);
 CREATE INDEX idx_operations_stats_plongee ON operations_stats(concerne_plongee);
+
+-- =========================
+-- TABLE AUDIT_LOG
+-- =========================
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id SERIAL PRIMARY KEY,
+    table_name TEXT,
+    action TEXT,
+    record_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
