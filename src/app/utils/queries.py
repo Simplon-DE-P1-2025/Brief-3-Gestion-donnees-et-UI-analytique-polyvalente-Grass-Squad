@@ -43,7 +43,9 @@ class OperationsQueries:
         limit: int, 
         offset: int, 
         search_pattern: Optional[str] = None,
-        search_column: str = "operation_id"
+        search_column: str = "operation_id",
+        sort_column: str = "date_heure_reception_alerte",
+        sort_direction: str = "DESC"
     ) -> pd.DataFrame:
         """
         Récupère les opérations avec pagination et filtre optionnel
@@ -54,10 +56,23 @@ class OperationsQueries:
             offset: Décalage pour la pagination
             search_pattern: Pattern de recherche optionnel
             search_column: Colonne sur laquelle effectuer la recherche
+            sort_column: Colonne de tri
+            sort_direction: Direction du tri (ASC/DESC)
             
         Returns:
             DataFrame des opérations
         """
+        # Sécuriser les paramètres de tri
+        allowed_columns = {
+            "operation_id": "operation_id",
+            "cross": '"cross"',
+            "evenement": "evenement",
+            "date_heure_reception_alerte": "date_heure_reception_alerte",
+            "departement": "departement"
+        }
+        order_col = allowed_columns.get(sort_column, "date_heure_reception_alerte")
+        order_dir = "DESC" if sort_direction.upper() != "ASC" else "ASC"
+        order_clause = f"ORDER BY {order_col} {order_dir}"
         base_query = """
         SELECT 
             operation_id,
@@ -74,9 +89,9 @@ class OperationsQueries:
         if search_pattern:
             # Gérer le cas spécial du cross qui nécessite des guillemets
             column_name = f'"{search_column}"' if search_column == 'cross' else search_column
-            query = base_query + f"""
+            query = f"""{base_query}
             WHERE CAST({column_name} AS TEXT) ILIKE %(search_pattern)s
-            ORDER BY date_heure_reception_alerte DESC
+            {order_clause}
             LIMIT %(limit)s OFFSET %(offset)s
             """
             params = {
@@ -85,8 +100,8 @@ class OperationsQueries:
                 'offset': offset
             }
         else:
-            query = base_query + """
-            ORDER BY date_heure_reception_alerte DESC
+            query = f"""{base_query}
+            {order_clause}
             LIMIT %(limit)s OFFSET %(offset)s
             """
             params = {'limit': limit, 'offset': offset}

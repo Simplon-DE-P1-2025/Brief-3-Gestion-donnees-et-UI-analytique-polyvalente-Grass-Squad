@@ -33,6 +33,7 @@ def show_operations_grid():
     
     # Afficher les contrôles
     _render_controls()
+    _render_sort_controls()
     
     # Sélecteur d'éléments par page
     _render_items_per_page_selector()
@@ -44,6 +45,8 @@ def show_operations_grid():
         search_column = st.session_state.search_column
         items_per_page = st.session_state.items_per_page
         page_number = st.session_state.page_number
+        sort_column = st.session_state.sort_column
+        sort_direction = st.session_state.sort_direction
         
         # Compter le total d'opérations
         search_pattern = search_id.strip() if search_id and search_id.strip() else None
@@ -66,7 +69,9 @@ def show_operations_grid():
             limit=items_per_page,
             offset=offset,
             search_pattern=search_pattern,
-            search_column=search_column
+            search_column=search_column,
+            sort_column=sort_column,
+            sort_direction=sort_direction
         )
         
         # Afficher indicateur de recherche
@@ -146,6 +151,45 @@ def _render_controls():
             if search_id != st.session_state.search_operation_id:
                 reset_pagination()
             st.session_state.search_operation_id = search_id
+
+
+def _render_sort_controls():
+    """Contrôles de tri pour la table des opérations"""
+    options = [
+        ("Date alerte", "date_heure_reception_alerte"),
+        ("ID", "operation_id"),
+        ("Cross", "cross"),
+        ("Évènement", "evenement"),
+        ("Département", "departement"),
+    ]
+    labels = {value: label for label, value in options}
+    col_sort1, col_sort2 = st.columns([2, 1])
+
+    with col_sort1:
+        selected_column = st.selectbox(
+            "Trier par",
+            options=[value for _, value in options],
+            index=[value for _, value in options].index(st.session_state.sort_column)
+            if st.session_state.sort_column in [value for _, value in options]
+            else 0,
+            format_func=lambda v: labels.get(v, v),
+            key="sort_column_select",
+            help="Choisissez la colonne utilisée pour trier la liste"
+        )
+        st.session_state.sort_column = selected_column
+
+    with col_sort2:
+        selected_direction = st.radio(
+            "Ordre",
+            options=["DESC", "ASC"],
+            index=["DESC", "ASC"].index(st.session_state.sort_direction)
+            if st.session_state.sort_direction in ["DESC", "ASC"]
+            else 0,
+            horizontal=True,
+            key="sort_direction_radio",
+            help="Ordre de tri croissant ou décroissant"
+        )
+        st.session_state.sort_direction = selected_direction
 
 
 def _render_items_per_page_selector():

@@ -20,6 +20,12 @@ def init_session_state():
     
     if 'items_per_page' not in st.session_state:
         st.session_state.items_per_page = 10
+
+    # Tri
+    if 'sort_column' not in st.session_state:
+        st.session_state.sort_column = "date_heure_reception_alerte"
+    if 'sort_direction' not in st.session_state:
+        st.session_state.sort_direction = "DESC"
     
     # Recherche
     if 'search_operation_id' not in st.session_state:

@@ -13,7 +13,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from src.config import PROJECT_ROOT
 from src.ingestion.load_raw_data import load_all_raw_data
-from src.validation.run_validation import clean_then_validate_pipeline
+from src.validation.run_validation import validate_clean_pipeline
 from src.database.load_database import create_tables, insert_with_copy, prepare_dataframe_for_db
 
 
@@ -28,7 +28,7 @@ def run_pipeline():
         
         # Étape 2: Nettoyage et Validation
         print("\n[2/4] Nettoyage et validation...")
-        results = clean_then_validate_pipeline(
+        results = validate_clean_pipeline(
             dataframes,
             rejected_path=str(PROJECT_ROOT / "data" / "rejected")
         )
