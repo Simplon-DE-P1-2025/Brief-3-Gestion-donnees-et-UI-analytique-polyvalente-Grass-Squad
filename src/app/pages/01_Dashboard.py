@@ -1,12 +1,14 @@
 import streamlit as st
 from pathlib import Path
 import sys
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
 from src.app.utils.session_state import init_session_state
 from src.app.utils.data_loader import get_stats_totals, get_map_data, get_db_info
+from src.database.load_database import engine
 
 st.set_page_config(page_title="Dashboard - Grass Squad", page_icon="📊", layout="wide")
 
@@ -18,6 +20,8 @@ st.session_state.current_page = 'dashboard'
 # =========================
 if "action" not in st.session_state:
     st.session_state.action = "dashboard"
+
+
 
 
 # =========================
