@@ -1,0 +1,27 @@
+/* Réduire l'espacement des éléments Streamlit */
+div[data-testid="stVerticalBlock"] > div {
+    gap: 0.2rem !important;
+}
+
+/* Réduire l'espacement des colonnes */
+div[data-testid="column"] {
+    padding: 0.1rem 0.3rem !important;
+}
+
+/* Réduire la hauteur des boutons */
+.stButton button {
+    padding: 0.2rem 0.4rem !important;
+    min-height: 1.8rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Réduire l'espacement du texte */
+.stMarkdown p {
+    margin-bottom: 0.2rem !important;
+}
+
+/* Style compact pour le tableau */
+div[data-testid="stText"] {
+    font-size: 0.85rem !important;
+    line-height: 1.2 !important;
+}

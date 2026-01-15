@@ -189,13 +189,28 @@ CREATE INDEX idx_operations_stats_phase_journee ON operations_stats(phase_journe
 CREATE INDEX idx_operations_stats_plongee ON operations_stats(concerne_plongee);
 
 -- =========================
--- TABLE AUDIT_LOG
+-- TABLE AUDIT_LOG (Historique complet des opérations)
 -- =========================
+-- Cette table enregistre toutes les transactions (INSERT, UPDATE, DELETE, VIEW)
+-- effectuées sur les tables principales de la base de données.
 
-CREATE TABLE IF NOT EXISTS audit_log (
+DROP TABLE IF EXISTS audit_log CASCADE;
+CREATE TABLE audit_log (
     id SERIAL PRIMARY KEY,
-    table_name TEXT,
-    action TEXT,
-    record_id TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    table_name TEXT NOT NULL,           -- Nom de la table concernée
+    action TEXT NOT NULL,                -- Type d'action: INSERT, UPDATE, DELETE, VIEW
+    record_id TEXT NOT NULL,             -- ID de l'enregistrement concerné
+    user_name TEXT DEFAULT 'system',     -- Utilisateur ayant effectué l'action
+    old_values JSONB,                    -- Valeurs avant modification (pour UPDATE/DELETE)
+    new_values JSONB,                    -- Nouvelles valeurs (pour INSERT/UPDATE)
+    details TEXT,                        -- Détails supplémentaires sur l'action
+    sql_query TEXT,                      -- Requête SQL exécutée
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Date et heure de l'action
 );
+
+-- Index pour améliorer les performances des requêtes d'audit
+CREATE INDEX idx_audit_log_table_name ON audit_log(table_name);
+CREATE INDEX idx_audit_log_action ON audit_log(action);
+CREATE INDEX idx_audit_log_created_at ON audit_log(created_at DESC);
+CREATE INDEX idx_audit_log_record_id ON audit_log(record_id);
+CREATE INDEX idx_audit_log_user_name ON audit_log(user_name);
