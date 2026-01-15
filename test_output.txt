@@ -1,0 +1,434 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\mabed\Documents\Simplon\Brief-3-Gestion-donnees-et-UI-analytique-polyvalente-Grass-Squad
+configfile: pyproject.toml
+plugins: anyio-4.11.0, cov-7.0.0, typeguard-4.4.4
+collected 21 items
+
+tests\test_app_utils.py ....FFFF                                         [ 38%]
+tests\test_cleaning.py F..F                                              [ 57%]
+tests\test_crud_operations.py .....                                      [ 80%]
+tests\test_validation.py F.F.                                            [100%]
+
+================================== FAILURES ===================================
+___________________________ test_init_session_state ___________________________
+
+    def test_init_session_state():
+        # Mock st.session_state as a dict
+        st.session_state = {}
+    
+>       init_session_state()
+
+tests\test_app_utils.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def init_session_state():
+        """Initialise toutes les variables de session_state nécessaires"""
+    
+        # État de navigation
+        if 'action' not in st.session_state:
+>           st.session_state.action = 'list'
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'dict' object has no attribute 'action' and no __dict__ for setting new attributes
+
+src\app\utils\session_state.py:12: AttributeError
+____________________________ test_reset_pagination ____________________________
+
+    def test_reset_pagination():
+        st.session_state = {'page_number': 10}
+>       reset_pagination()
+
+tests\test_app_utils.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def reset_pagination():
+        """Réinitialise la pagination à la page 1"""
+>       st.session_state.page_number = 1
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'page_number' and no __dict__ for setting new attributes
+
+src\app\utils\session_state.py:42: AttributeError
+______________________________ test_navigate_to _______________________________
+
+    def test_navigate_to():
+        st.session_state = {'action': 'list', 'selected_operation_id': None}
+        st.rerun = MagicMock()
+    
+>       navigate_to('view', 123)
+
+tests\test_app_utils.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+action = 'view', operation_id = 123
+
+    def navigate_to(action: str, operation_id: int = None):
+        """
+        Change l'état de navigation
+    
+        Args:
+            action: Action à effectuer ('list', 'view', 'edit', 'create', 'delete')
+            operation_id: ID de l'opération (optionnel)
+        """
+>       st.session_state.action = action
+        ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'action' and no __dict__ for setting new attributes
+
+src\app\utils\session_state.py:53: AttributeError
+______________________________ test_clear_search ______________________________
+
+    def test_clear_search():
+        st.session_state = {'search_operation_id': '123', 'page_number': 5}
+    
+>       clear_search()
+
+tests\test_app_utils.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def clear_search():
+        """Efface la recherche et réinitialise la pagination"""
+>       st.session_state.search_operation_id = ""
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'search_operation_id' and no __dict__ for setting new attributes
+
+src\app\utils\session_state.py:61: AttributeError
+____________________________ test_clean_operations ____________________________
+
+    def test_clean_operations():
+        data = {
+            "operation_id": [1],
+            "numero_sitrep": [0],  # Should become None
+            "date_heure_reception_alerte": ["2023-01-01 10:00:00"],
+            "latitude": ["45.5"],
+            "longitude": [None],
+            "cross": ["CROSS Med"]
+        }
+        df = pd.DataFrame(data)
+        cleaned = clean_operations(df)
+    
+>       assert cleaned.loc[0, "numero_sitrep"] is None
+E       assert <NA> is None
+
+tests\test_cleaning.py:29: AssertionError
+_________________________ test_clean_resultats_humain _________________________
+
+    def test_clean_resultats_humain():
+        data = {
+            "operation_id": [1],
+            "nombre": [None]
+        }
+        df = pd.DataFrame(data)
+        cleaned = clean_resultats_humain(df)
+    
+>       assert cleaned.loc[0, "nombre"] == 0
+
+tests\test_cleaning.py:64: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ???
+E   TypeError: boolean value of NA is ambiguous
+
+pandas/_libs/missing.pyx:392: TypeError
+_______________________ test_validate_operations_valid ________________________
+
+    def test_validate_operations_valid():
+        # Helper to generate valid row
+        data = {
+            "operation_id": [1],
+            "cross": ["CROSS Med"],
+            "date_heure_reception_alerte": [pd.Timestamp("2023-01-01 12:00:00")],
+            "latitude": [45.0],
+            "longitude": [-10.0],
+            "vent_direction": [180.0]
+        }
+        # Create DF
+        df = pd.DataFrame(data)
+    
+        # We need to ensure all required columns are present or schema allows them to be missing.
+        # The schema usually defines columns that MUST exist.
+        # Let's add missing columns with default values to simulate a "cleaned" dataframe.
+        for col in schema_operations.columns:
+            if col not in df.columns:
+                # Simple nullable logic for test
+                if schema_operations.columns[col].nullable:
+                    df[col] = None
+                else:
+                    # If required and not present, we must provide it.
+                    # Checking schema: only 'operation_id', 'cross', 'date_heure_reception_alerte' seem strict non-nullable without default content issues in typical simple schema.
+                    # Actually checking schema source:
+                    # operation_id: nullable=False
+                    # cross: nullable=False
+                    # date_heure_reception_alerte: nullable=False
+                    # The rest seems to have nullable=True.
+                    pass
+    
+        # Validate
+        # schema_operations.validate(df) # This might still fail if types mismatch (e.g. object vs string).
+        # Since we can't easily reproduce the exact conditions without running the full cleaning,
+        # we will focus on specific checks or try to validate.
+        try:
+>           schema_operations.validate(df, lazy=True)
+
+tests\test_validation.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\pandera\api\pandas\container.py:117: in validate
+    return self._validate(
+.venv\Lib\site-packages\pandera\api\pandas\container.py:137: in _validate
+    return self.get_backend(check_obj).validate(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <pandera.backends.pandas.container.DataFrameSchemaBackend object at 0x0000021F383DDA90>
+check_obj =    operation_id      cross  ... fuseau_horaire  systeme_source
+0             1  CROSS Med  ...           None            None
+
+[1 rows x 26 columns]
+schema = <Schema DataFrameSchema(columns={'operation_id': <Schema Column(name=operation_id, type=DataType(Int64))>, 'type_opera...e_column_names=False, add_missing_columns=False, title=None, description=None, metadata=None, drop_invalid_rows=False)>
+
+    def validate(
+        self,
+        check_obj: pd.DataFrame,
+        schema,
+        *,
+        head: int | None = None,
+        tail: int | None = None,
+        sample: int | None = None,
+        random_state: int | None = None,
+        lazy: bool = False,
+        inplace: bool = False,
+    ):
+        """
+        Parse and validate a check object, returning type-coerced and validated
+        object.
+        """
+    
+        if not is_table(check_obj):
+            raise TypeError(f"expected pd.DataFrame, got {type(check_obj)}")
+    
+        if getattr(schema, "drop_invalid_rows", False) and not lazy:
+            raise SchemaDefinitionError(
+                "When drop_invalid_rows is True, lazy must be set to True."
+            )
+    
+        error_handler = ErrorHandler(lazy)
+    
+        check_obj = self.preprocess(check_obj, inplace=inplace)
+        if hasattr(check_obj, "pandera"):
+            check_obj = check_obj.pandera.add_schema(schema)
+    
+        # run custom parsers
+        check_obj = self.run_parsers(schema, check_obj)
+    
+        # Collect status of columns against schema
+        column_info = self.collect_column_info(check_obj, schema)
+    
+        core_parsers: list[tuple[Callable[..., Any], tuple[Any, ...]]] = [
+            (self.add_missing_columns, (schema, column_info)),
+            (self.strict_filter_columns, (schema, column_info)),
+            (self.set_defaults, (schema,)),
+            (self.coerce_dtype, (schema,)),
+        ]
+    
+        for parser, args in core_parsers:
+            try:
+                check_obj = parser(check_obj, *args)
+            except SchemaError as exc:
+                error_handler.collect_error(
+                    get_error_category(exc.reason_code), exc.reason_code, exc
+                )
+            except SchemaErrors as exc:
+                error_handler.collect_errors(exc.schema_errors)
+    
+        # We may have modified columns, for example by
+        # add_missing_columns, so regenerate column info
+        column_info = self.collect_column_info(check_obj, schema)
+    
+        # collect schema components
+        components = self.collect_schema_components(
+            check_obj, schema, column_info
+        )
+    
+        # run the checks
+        error_handler = self.run_checks_and_handle_errors(
+            error_handler,
+            schema,
+            check_obj,
+            column_info,
+            sample,
+            components,
+            lazy,
+            head,
+            tail,
+            random_state,
+        )
+    
+        if error_handler.collected_errors:
+            if getattr(schema, "drop_invalid_rows", False):
+                # if the failure cases are a string, it means the error is
+                # a schema-level error.
+                if any(
+                    isinstance(err.failure_cases, str)
+                    for err in error_handler.schema_errors
+                ):
+                    raise SchemaErrors(
+                        schema=schema,
+                        schema_errors=error_handler.schema_errors,
+                        data=check_obj,
+                    )
+                check_obj = self.drop_invalid_rows(check_obj, error_handler)
+            else:
+>               raise SchemaErrors(
+                    schema=schema,
+                    schema_errors=error_handler.schema_errors,
+                    data=check_obj,
+                )
+E               pandera.errors.SchemaErrors: {
+E                   "SCHEMA": {
+E                       "WRONG_DATATYPE": [
+E                           {
+E                               "schema": null,
+E                               "column": "est_metropolitain",
+E                               "check": "dtype('bool')",
+E                               "error": "expected series 'est_metropolitain' to have type bool, got object"
+E                           },
+E                           {
+E                               "schema": null,
+E                               "column": "vent_force",
+E                               "check": "dtype('float64')",
+E                               "error": "expected series 'vent_force' to have type float64, got object"
+E                           },
+E                           {
+E                               "schema": null,
+E                               "column": "mer_force",
+E                               "check": "dtype('float64')",
+E                               "error": "expected series 'mer_force' to have type float64, got object"
+E                           },
+E                           {
+E                               "schema": null,
+E                               "column": "date_heure_fin_operation",
+E                               "check": "dtype('datetime64[ns]')",
+E                               "error": "expected series 'date_heure_fin_operation' to have type datetime64[ns], got object"
+E                           },
+E                           {
+E                               "schema": null,
+E                               "column": "numero_sitrep",
+E                               "check": "dtype('Int64')",
+E                               "error": "expected series 'numero_sitrep' to have type Int64, got object"
+E                           }
+E                       ]
+E                   }
+E               }
+
+.venv\Lib\site-packages\pandera\backends\pandas\container.py:135: SchemaErrors
+
+During handling of the above exception, another exception occurred:
+
+    def test_validate_operations_valid():
+        # Helper to generate valid row
+        data = {
+            "operation_id": [1],
+            "cross": ["CROSS Med"],
+            "date_heure_reception_alerte": [pd.Timestamp("2023-01-01 12:00:00")],
+            "latitude": [45.0],
+            "longitude": [-10.0],
+            "vent_direction": [180.0]
+        }
+        # Create DF
+        df = pd.DataFrame(data)
+    
+        # We need to ensure all required columns are present or schema allows them to be missing.
+        # The schema usually defines columns that MUST exist.
+        # Let's add missing columns with default values to simulate a "cleaned" dataframe.
+        for col in schema_operations.columns:
+            if col not in df.columns:
+                # Simple nullable logic for test
+                if schema_operations.columns[col].nullable:
+                    df[col] = None
+                else:
+                    # If required and not present, we must provide it.
+                    # Checking schema: only 'operation_id', 'cross', 'date_heure_reception_alerte' seem strict non-nullable without default content issues in typical simple schema.
+                    # Actually checking schema source:
+                    # operation_id: nullable=False
+                    # cross: nullable=False
+                    # date_heure_reception_alerte: nullable=False
+                    # The rest seems to have nullable=True.
+                    pass
+    
+        # Validate
+        # schema_operations.validate(df) # This might still fail if types mismatch (e.g. object vs string).
+        # Since we can't easily reproduce the exact conditions without running the full cleaning,
+        # we will focus on specific checks or try to validate.
+        try:
+            schema_operations.validate(df, lazy=True)
+        except pa.errors.SchemaErrors as e:
+            # If it fails due to missing optional columns that pandas treats as missing, we might need to be more robust.
+            # For now, let's assume it passes or we debug.
+>           pytest.fail(f"Validation failed: {e.failure_cases}")
+E           Failed: Validation failed:                      column failure_case  ...                    check check_number
+E           0         est_metropolitain       object  ...            dtype('bool')         None
+E           1                vent_force       object  ...         dtype('float64')         None
+E           2                 mer_force       object  ...         dtype('float64')         None
+E           3  date_heure_fin_operation       object  ...  dtype('datetime64[ns]')         None
+E           4             numero_sitrep       object  ...           dtype('Int64')         None
+E           
+E           [5 rows x 6 columns]
+
+tests\test_validation.py:54: Failed
+________________________ test_validate_flotteurs_valid ________________________
+
+    def test_validate_flotteurs_valid():
+        data = {
+            "operation_id": [1],
+            "numero_ordre": [1],
+            "resultat_flotteur": ["OK"],
+            "type_flotteur": ["Boat"],
+            "categorie_flotteur": ["Sea"],
+            "pavillon": ["Français"]
+        }
+        df = pd.DataFrame(data)
+>       schema_flotteurs.validate(df)
+
+tests\test_validation.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\pandera\api\pandas\container.py:117: in validate
+    return self._validate(
+.venv\Lib\site-packages\pandera\api\pandas\container.py:137: in _validate
+    return self.get_backend(check_obj).validate(
+.venv\Lib\site-packages\pandera\backends\pandas\container.py:107: in validate
+    error_handler = self.run_checks_and_handle_errors(
+.venv\Lib\site-packages\pandera\backends\pandas\container.py:194: in run_checks_and_handle_errors
+    error_handler.collect_error(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <pandera.api.base.error_handler.ErrorHandler object at 0x0000021F38483D90>
+error_type = <ErrorCategory.SCHEMA: 'schema-failures'>
+reason_code = <SchemaErrorReason.COLUMN_NOT_IN_DATAFRAME: 'column_not_in_dataframe'>
+schema_error = SchemaError("column 'numero_immatriculation' not in dataframe. Columns in dataframe: ['operation_id', 'numero_ordre', 'resultat_flotteur', 'type_flotteur', 'categorie_flotteur', 'pavillon']")
+original_exc = None
+
+    def collect_error(
+        self,
+        error_type: ErrorCategory,
+        reason_code: SchemaErrorReason | None,
+        schema_error: SchemaError,
+        original_exc: Union[BaseException, None] = None,
+    ):
+        """Collect schema error, raising exception if lazy is False.
+    
+        :param error_type: type of error
+        :param reason_code: string representing reason for error
+        :param schema_error: ``SchemaError`` object.
+        """
+        if not self._lazy:
+>           raise schema_error from original_exc
+E           pandera.errors.SchemaError: column 'numero_immatriculation' not in dataframe. Columns in dataframe: ['operation_id', 'numero_ordre', 'resultat_flotteur', 'type_flotteur', 'categorie_flotteur', 'pavillon']
+
+.venv\Lib\site-packages\pandera\api\base\error_handler.py:98: SchemaError
+=========================== short test summary info ===========================
+FAILED tests/test_app_utils.py::test_init_session_state - AttributeError: 'di...
+FAILED tests/test_app_utils.py::test_reset_pagination - AttributeError: 'dict...
+FAILED tests/test_app_utils.py::test_navigate_to - AttributeError: 'dict' obj...
+FAILED tests/test_app_utils.py::test_clear_search - AttributeError: 'dict' ob...
+FAILED tests/test_cleaning.py::test_clean_operations - assert <NA> is None
+FAILED tests/test_cleaning.py::test_clean_resultats_humain - TypeError: boole...
+FAILED tests/test_validation.py::test_validate_operations_valid - Failed: Val...
+FAILED tests/test_validation.py::test_validate_flotteurs_valid - pandera.erro...
+======================== 8 failed, 13 passed in 12.78s ========================
