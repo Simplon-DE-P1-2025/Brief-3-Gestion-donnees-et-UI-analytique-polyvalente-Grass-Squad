@@ -20,7 +20,7 @@ if "action" not in st.session_state:
     st.session_state.action = "dashboard"
 
 
-if st.button("⬅️ Retour au dashboard"):
+if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_alerte"):
         st.session_state.action = 'dashboard'
         st.rerun()
 

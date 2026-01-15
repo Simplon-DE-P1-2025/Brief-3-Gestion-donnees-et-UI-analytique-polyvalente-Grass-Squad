@@ -18,7 +18,7 @@ def render(engine):
     params = {}
 
 
-    if st.button("⬅️ Retour au dashboard"):
+    if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_date"):
         st.session_state.action = 'dashboard'
         st.rerun()
     # --------------
