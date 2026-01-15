@@ -6,6 +6,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from src.database.load_database import engine
+from src.analysis.date_analysis import (
+    get_global_kpis,
+    get_day_of_week_analysis,
+    get_vacation_summer_analysis
+)
 
 
 
@@ -41,21 +46,7 @@ def render(engine):
     # ------------------------------------------------------
     st.subheader("📌 Vue globale ")
 
-    q_kpi = f"""
-    SELECT
-    COUNT(DISTINCT os.operation_id) AS operations,
-    COALESCE(SUM(os.nombre_personnes_impliquees),0) AS personnes_impliquees,
-    COALESCE(SUM(os.nombre_personnes_secourues),0) AS personnes_secourues,
-    COALESCE(SUM(os.nombre_personnes_decedees),0) AS personnes_decedees,
-    ROUND(
-        COALESCE(SUM(os.nombre_personnes_impliquees),0)::numeric
-        / NULLIF(COUNT(DISTINCT os.operation_id),0),
-        2
-    ) AS impliquees_par_operation
-    FROM operations_stats os
-    WHERE {where_sql};
-    """
-    k = pd.read_sql(q_kpi, engine, params=params).iloc[0]
+    k = get_global_kpis(engine, where_sql, params)
 
     ops_total = int(k.operations or 0)
     impl_total = int(k.personnes_impliquees or 0)
@@ -89,33 +80,7 @@ def render(engine):
     # ======================================================
     st.subheader("📅 Jour de la semaine — activité & charge")
 
-    # ⚠️ On recalcule le jour depuis la date (pour éviter Wednesday / mélange FR-EN)
-    q_day = f"""
-    SELECT
-    CASE EXTRACT(DOW FROM os.date::date)
-        WHEN 0 THEN 'Dimanche'
-        WHEN 1 THEN 'Lundi'
-        WHEN 2 THEN 'Mardi'
-        WHEN 3 THEN 'Mercredi'
-        WHEN 4 THEN 'Jeudi'
-        WHEN 5 THEN 'Vendredi'
-        WHEN 6 THEN 'Samedi'
-    END AS jour_semaine,
-    EXTRACT(DOW FROM os.date::date)::int AS ordre,
-    COUNT(DISTINCT os.operation_id) AS operations,
-    COALESCE(SUM(os.nombre_personnes_impliquees),0) AS personnes_impliquees,
-    ROUND(
-        COALESCE(SUM(os.nombre_personnes_impliquees),0)::numeric
-        / NULLIF(COUNT(DISTINCT os.operation_id),0),
-        2
-    ) AS impliquees_par_operation
-    FROM operations_stats os
-    WHERE {where_sql}
-    AND os.date IS NOT NULL
-    GROUP BY 1,2
-    ORDER BY ordre;
-    """
-    df_day = pd.read_sql(q_day, engine, params=params)
+    df_day = get_day_of_week_analysis(engine, where_sql, params)
 
     colA, colB = st.columns([2, 1])
     with colA:
@@ -143,27 +108,7 @@ def render(engine):
 
     st.divider()
 
-    q_vac_ete = f"""
-    WITH base AS (
-    SELECT
-        os.operation_id,
-        COALESCE(os.nombre_personnes_impliquees,0) AS impliquees,
-        (os.est_vacances_scolaires = TRUE) AS est_vacances,
-        (os.mois IN (7,8)) AS est_ete
-    FROM operations_stats os
-    WHERE {where_sql}
-    )
-    SELECT
-    est_vacances,
-    est_ete,
-    COUNT(DISTINCT operation_id) AS operations,
-    SUM(impliquees) AS personnes_impliquees,
-    ROUND(SUM(impliquees)::numeric / NULLIF(COUNT(DISTINCT operation_id),0), 2) AS impliquees_par_operation
-    FROM base
-    GROUP BY est_vacances, est_ete
-    ORDER BY est_vacances, est_ete;
-    """
-    df = pd.read_sql(q_vac_ete, engine, params=params)
+    df = get_vacation_summer_analysis(engine, where_sql, params)
 
     if df.empty:
         st.info("Pas de données pour la période.")

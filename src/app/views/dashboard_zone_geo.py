@@ -6,6 +6,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from src.database.load_database import engine
+from src.analysis.zone_analysis import (
+    get_geographic_kpis,
+    get_map_coordinates,
+    get_top_zones_cross
+)
 
 
 def render(engine):
@@ -40,27 +45,7 @@ def render(engine):
   # ------------------------------------------------------
   st.subheader("📌 Indicateurs clés")
 
-  q_kpi = f"""
-  WITH base AS (
-    SELECT
-      o.operation_id,
-      (o.latitude IS NOT NULL AND o.longitude IS NOT NULL) AS has_gps,
-      COALESCE(os.nombre_personnes_impliquees,0) AS impliquees,
-      COALESCE(os.nombre_personnes_decedees,0) AS deces
-    FROM operations o
-    LEFT JOIN operations_stats os USING(operation_id)
-    WHERE {where_sql}
-  )
-  SELECT
-    COUNT(DISTINCT operation_id) AS ops_total,
-    COUNT(*) FILTER (WHERE has_gps) AS ops_geo,
-    ROUND(100.0 * COUNT(*) FILTER (WHERE has_gps)::numeric / NULLIF(COUNT(*),0), 1) AS gps_pct,
-    SUM(impliquees) AS impliquees_total,
-    SUM(deces) AS deces_total,
-    ROUND(100.0 * SUM(deces)::numeric / NULLIF(SUM(impliquees),0), 2) AS taux_deces_global_pct
-  FROM base;
-  """
-  k = pd.read_sql(q_kpi, engine, params=params).iloc[0]
+  k = get_geographic_kpis(engine, where_sql, params)
 
   ops_total = int(k.ops_total or 0)
   ops_geo = int(k.ops_geo or 0)
@@ -90,15 +75,7 @@ def render(engine):
   # ======================================================
   st.subheader("🌍 Carte des opérations (échantillon géolocalisé)")
 
-  q_map = f"""
-  SELECT o.latitude, o.longitude
-  FROM operations o
-  WHERE {where_sql}
-    AND o.latitude IS NOT NULL
-    AND o.longitude IS NOT NULL
-  LIMIT 3000;
-  """
-  df_map = pd.read_sql(q_map, engine, params=params)
+  df_map = get_map_coordinates(engine, where_sql, params, limit=3000)
 
   if df_map.empty:
       st.info("Aucune donnée GPS disponible sur la période sélectionnée.")
@@ -113,31 +90,7 @@ def render(engine):
   # ======================================================
   st.subheader("🏷️ Top zones (CROSS) — volume & charge humaine")
 
-  q_top = f"""
-  SELECT
-    NULLIF(TRIM(o.cross),'') AS cross,
-    COUNT(DISTINCT o.operation_id) AS operations,
-    COALESCE(SUM(os.nombre_personnes_impliquees),0) AS impliquees,
-    ROUND(
-      COALESCE(SUM(os.nombre_personnes_impliquees),0)::numeric
-      / NULLIF(COUNT(DISTINCT o.operation_id),0),
-      2
-    ) AS impliquees_par_operation,
-    COALESCE(SUM(os.nombre_personnes_decedees),0) AS deces,
-    ROUND(
-      100.0 * COALESCE(SUM(os.nombre_personnes_decedees),0)::numeric
-      / NULLIF(COALESCE(SUM(os.nombre_personnes_impliquees),0),0),
-      2
-    ) AS taux_deces_pct
-  FROM operations o
-  LEFT JOIN operations_stats os USING(operation_id)
-  WHERE {where_sql}
-    AND NULLIF(TRIM(o.cross),'') IS NOT NULL
-  GROUP BY 1
-  ORDER BY operations DESC
-  LIMIT 15;
-  """
-  df_top = pd.read_sql(q_top, engine, params=params)
+  df_top = get_top_zones_cross(engine, where_sql, params, limit=15)
 
   left, right = st.columns([2, 1])
   with left:

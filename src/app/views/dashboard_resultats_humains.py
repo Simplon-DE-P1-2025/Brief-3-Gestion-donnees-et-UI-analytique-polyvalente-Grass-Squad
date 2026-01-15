@@ -10,6 +10,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from src.database.load_database import engine
+from src.analysis.resultats_humain_analysis import (
+    get_human_pipeline_kpis,
+    get_profiles_analysis,
+    get_human_outcomes_global,
+    get_human_outcomes_by_profile
+)
 
 
 def render(engine):
@@ -49,17 +55,7 @@ def render(engine):
         # ======================================================
         st.subheader("📌 Pipeline humain")
 
-        q_kpi = f"""
-        SELECT
-        COALESCE(SUM(os.nombre_personnes_impliquees),0) AS impliquees,
-        COALESCE(SUM(os.nombre_personnes_secourues),0) AS secourues,
-        COALESCE(SUM(os.nombre_personnes_blessees),0) AS blessees,
-        COALESCE(SUM(os.nombre_personnes_decedees),0) AS deces,
-        COALESCE(SUM(os.nombre_personnes_impliquees_dans_fausse_alerte),0) AS fausse_alerte
-        FROM operations_stats os
-        WHERE {where_os};
-        """
-        k = pd.read_sql(q_kpi, engine, params=params).iloc[0]
+        k = get_human_pipeline_kpis(engine, where_os, params)
 
         impl = int(k.impliquees or 0)
         sec = int(k.secourues or 0)
@@ -124,25 +120,7 @@ def render(engine):
         st.subheader("🧑‍🤝‍🧑 Profils (categorie_personne) — volume & gravité")
         st.caption("On identifie les profils dominants (volume) et ceux qui ont une gravité plus forte (taux de blessure).")
 
-        q_prof = f"""
-        SELECT
-        NULLIF(TRIM(rh.categorie_personne),'') AS categorie_personne,
-        COALESCE(SUM(rh.nombre),0) AS personnes,
-        COALESCE(SUM(rh.dont_nombre_blesse),0) AS blesses,
-        ROUND(
-            100.0 * COALESCE(SUM(rh.dont_nombre_blesse),0)::numeric
-            / NULLIF(COALESCE(SUM(rh.nombre),0),0),
-            2
-        ) AS taux_blessure_pct
-        FROM resultats_humain rh
-        JOIN operations_stats os
-        ON os.operation_id = rh.operation_id
-        WHERE {where_os}
-        AND NULLIF(TRIM(rh.categorie_personne),'') IS NOT NULL
-        GROUP BY 1
-        ORDER BY personnes DESC;
-        """
-        df_prof = pd.read_sql(q_prof, engine, params=params)
+        df_prof = get_profiles_analysis(engine, where_os, params)
 
         if df_prof.empty:
             st.info("Aucune donnée profil disponible.")
@@ -246,19 +224,7 @@ def render(engine):
         st.subheader("🏁 Issues humaines — que devient la personne ?")
         st.caption("On voit les issues dominantes, puis comment elles se répartissent selon les profils principaux.")
 
-        q_out = f"""
-        SELECT
-        NULLIF(TRIM(rh.resultat_humain),'') AS resultat_humain,
-        COALESCE(SUM(rh.nombre),0) AS personnes
-        FROM resultats_humain rh
-        JOIN operations_stats os
-        ON os.operation_id = rh.operation_id
-        WHERE {where_os}
-        AND NULLIF(TRIM(rh.resultat_humain),'') IS NOT NULL
-        GROUP BY 1
-        ORDER BY personnes DESC;
-        """
-        df_out = pd.read_sql(q_out, engine, params=params)
+        df_out = get_human_outcomes_global(engine, where_os, params)
 
         if df_out.empty:
             st.info("Aucune donnée d’issue humaine disponible.")
@@ -300,23 +266,7 @@ def render(engine):
                 top_profils = []
 
             if top_profils:
-                q_out_prof = f"""
-                SELECT
-                NULLIF(TRIM(rh.categorie_personne),'') AS categorie_personne,
-                NULLIF(TRIM(rh.resultat_humain),'') AS resultat_humain,
-                COALESCE(SUM(rh.nombre),0) AS personnes
-                FROM resultats_humain rh
-                JOIN operations_stats os
-                ON os.operation_id = rh.operation_id
-                WHERE {where_os}
-                AND NULLIF(TRIM(rh.categorie_personne),'') = ANY(%(top_profils)s::text[])
-                AND NULLIF(TRIM(rh.resultat_humain),'') IS NOT NULL
-                GROUP BY 1,2;
-                """
-                params2 = dict(params)
-                params2["top_profils"] = top_profils
-
-                df_out_prof = pd.read_sql(q_out_prof, engine, params=params2)
+                df_out_prof = get_human_outcomes_by_profile(engine, where_os, params, top_profils)
 
                 if not df_out_prof.empty:
                     tot = df_out_prof.groupby("categorie_personne", as_index=False)["personnes"].sum().rename(columns={"personnes": "total"})

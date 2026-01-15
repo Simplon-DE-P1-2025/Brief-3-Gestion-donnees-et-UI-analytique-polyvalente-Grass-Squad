@@ -120,8 +120,14 @@ def _render_controls():
             st.rerun()
     
     with col_btn2:
-        if st.button("🔄 Rafraîchir", use_container_width=True):
+        if st.button("🔄 Rafraîchir", use_container_width=True, help="Actualise la page et réinitialise tous les filtres et recherches"):
+            # Réinitialiser tous les filtres et recherches
             clear_search()
+            st.session_state.search_operation_id = ""
+            st.session_state.search_column = "operation_id"
+            st.session_state.sort_column = "operation_id"
+            st.session_state.sort_direction = "DESC"
+            reset_pagination()
             st.rerun()
     
     with col_search:

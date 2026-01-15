@@ -30,10 +30,7 @@ def clean_strings(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].str.strip().replace({"": None, "NA": None, "N/A": None, "nan": None})
     return df
 
-def clean_operation_id(df: pd.DataFrame) -> pd.DataFrame:
-    if "operation_id" in df.columns:
-        df["operation_id"] = df["operation_id"].astype("Int64")
-    return df
+
 
 def clean_numeric_columns(df: pd.DataFrame, cols: list) -> pd.DataFrame:
     for col in cols:
@@ -74,6 +71,29 @@ def ensure_columns(df: pd.DataFrame, columns: dict) -> pd.DataFrame:
                 df[col] = df[col].dt.tz_localize(None)
     return df
 
+def clean_operation_id(df: pd.DataFrame):
+    """
+    Nettoyage métier SECMAR :
+    - operation_id doit être strictement positif
+    - séparation données valides / rejetées
+    """
+    if "operation_id" not in df.columns:
+        return df, pd.DataFrame()
+
+    df = df.copy()
+
+    df["operation_id"] = pd.to_numeric(df["operation_id"], errors="coerce")
+
+    rejected = df[df["operation_id"].isna() | (df["operation_id"] <= 0)].copy()
+    valid = df[df["operation_id"] > 0].copy()
+
+    if not rejected.empty:
+        rejected["rejection_reason"] = "operation_id invalid (<=0 or NaN)"
+
+    valid["operation_id"] = valid["operation_id"].astype("Int64")
+
+    return valid, rejected
+
 # -----------------------------
 # Normalisations spécifiques
 # -----------------------------
@@ -102,15 +122,54 @@ def normalize_pavillon(df: pd.DataFrame) -> pd.DataFrame:
 # -----------------------------
 # Nettoyage spécifique par DataFrame
 # -----------------------------
+import os
+import pandas as pd
 
-def clean_operations(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy().drop_duplicates()
+def clean_operations(
+    df: pd.DataFrame,
+    rejected_path: str = "data/rejected"
+) -> pd.DataFrame:
+    """
+    Nettoyage complet de la table operations
+    + traçabilité des lignes rejetées
+    """
+
+    os.makedirs(rejected_path, exist_ok=True)
+
+    rejected_frames = []
+
+    # Nettoyage operation_id
+    df, rejected_op_id = clean_operation_id(df)
+    if not rejected_op_id.empty:
+        rejected_op_id["rejection_reason"] = "invalid_operation_id"
+        rejected_op_id["rejection_step"] = "clean_operation_id"
+        rejected_frames.append(rejected_op_id)
+
+
+    # Duplicats
+    duplicated = df[df.duplicated()].copy()
+    if not duplicated.empty:
+        duplicated["rejection_reason"] = "duplicate_row"
+        duplicated["rejection_step"] = "drop_duplicates"
+        rejected_frames.append(duplicated)
+
+    df = df.drop_duplicates()
+
+
+    # Nettoyages généraux
     df = clean_columns(df)
     df = drop_empty_rows(df)
     df = clean_strings(df)
-    df = clean_operation_id(df)
-    df = clean_dates(df, ["date_heure_reception_alerte", "date_heure_fin_operation"])
-    
+
+
+    # Dates
+    df = clean_dates(
+        df,
+        ["date_heure_reception_alerte", "date_heure_fin_operation"]
+    )
+
+
+    # Typage / colonnes attendues
     columns = {
         "operation_id": ("Int64", 0),
         "type_operation": ("str", None),
@@ -137,16 +196,61 @@ def clean_operations(df: pd.DataFrame) -> pd.DataFrame:
         "fuseau_horaire": ("str", None),
         "systeme_source": ("str", None)
     }
-    
+
     df = ensure_columns(df, columns)
-    df.loc[df['numero_sitrep'] == 0, 'numero_sitrep'] = None
+
+    df.loc[df["numero_sitrep"] == 0, "numero_sitrep"] = None
+
+   
+    # Cohérence métier des dates
+    if (
+        "date_heure_reception_alerte" in df.columns
+        and "date_heure_fin_operation" in df.columns
+    ):
+        date_debut = pd.to_datetime(df["date_heure_reception_alerte"], errors="coerce")
+        date_fin = pd.to_datetime(df["date_heure_fin_operation"], errors="coerce")
+
+        invalid_dates = (
+            date_debut.notna()
+            & date_fin.notna()
+            & (date_fin < date_debut)
+        )
+
+        if invalid_dates.any():
+            rejected_dates = df[invalid_dates].copy()
+            rejected_dates["rejection_reason"] = "date_fin < date_debut"
+            rejected_dates["rejection_step"] = "date_coherence"
+            rejected_frames.append(rejected_dates)
+
+            df.loc[invalid_dates, "date_heure_fin_operation"] = None
+
+
+    # Sauvegarde des rejets
+    if rejected_frames:
+        rejected_all = pd.concat(rejected_frames, ignore_index=True)
+        rejected_file = os.path.join(
+            rejected_path, "operations_cleaning_rejected.csv"
+        )
+        rejected_all.to_csv(rejected_file, index=False)
+        print(f"➜ lignes rejetées sauvegardées : {rejected_file}")
+
     return df
+
 
 def clean_operations_stats(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy().drop_duplicates()
     df = clean_columns(df)
     df = drop_empty_rows(df)
     df = clean_strings(df)
+    
+    # Nettoyage operation_id
+    df, rejected_op_id = clean_operation_id(df)
+    if not rejected_op_id.empty:
+        os.makedirs("data/rejected", exist_ok=True)
+        rejected_file = "data/rejected/operations_stats_rejected_raw.csv"
+        rejected_op_id.to_csv(rejected_file, index=False)
+        print(f"➜ lignes rejetées (operation_id invalide) sauvegardées : {rejected_file}")
+    
     df = clean_dates(df, ["date"])
     
     # Convertir les colonnes float qui devraient être int en int64
@@ -179,7 +283,15 @@ def clean_flotteurs(df: pd.DataFrame) -> pd.DataFrame:
     df = clean_columns(df)
     df = drop_empty_rows(df)
     df = clean_strings(df)
-    df = clean_operation_id(df)
+    
+    # Nettoyage operation_id
+    df, rejected_op_id = clean_operation_id(df)
+    if not rejected_op_id.empty:
+        os.makedirs("data/rejected", exist_ok=True)
+        rejected_file = "data/rejected/flotteurs_rejected_raw.csv"
+        rejected_op_id.to_csv(rejected_file, index=False)
+        print(f"➜ lignes rejetées (operation_id invalide) sauvegardées : {rejected_file}")
+    
     df = normalize_pavillon(df)
 
     columns = {
@@ -199,6 +311,10 @@ def clean_flotteurs(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[:, 'type_flotteur'] = df['type_flotteur'].fillna("Non renseigné")
     df.loc[:, 'categorie_flotteur'] = df['categorie_flotteur'].fillna("Non renseigné")
     df.loc[:, 'numero_ordre'] = df['numero_ordre'].fillna(1)
+    
+    # Contrainte d'unicité : supprimer doublons sur (operation_id, numero_ordre)
+    # Garder la première occurrence
+    df = df.drop_duplicates(subset=['operation_id', 'numero_ordre'], keep='first')
 
     return df
 
@@ -207,18 +323,41 @@ def clean_resultats_humain(df: pd.DataFrame) -> pd.DataFrame:
     df = clean_columns(df)
     df = drop_empty_rows(df)
     df = clean_strings(df)
-    df = clean_operation_id(df)
+    
+    # Nettoyage operation_id
+    df, rejected_op_id = clean_operation_id(df)
+    if not rejected_op_id.empty:
+        os.makedirs("data/rejected", exist_ok=True)
+        rejected_file = "data/rejected/resultats_humain_rejected_raw.csv"
+        rejected_op_id.to_csv(rejected_file, index=False)
+        print(f"➜ lignes rejetées (operation_id invalide) sauvegardées : {rejected_file}")
+    
     df = normalize_resultat_humain(df)
     df = clean_numeric_columns(df, ["nombre", "dont_nombre_blesse"])
     df = fix_negative_values(df, ["nombre", "dont_nombre_blesse"])
 
     columns = {
         "operation_id": ("Int64", 0),
-        "categorie_personne": ("str", None),
-        "resultat_humain": ("str", None),
+        "categorie_personne": ("str", "Non renseigné"),
+        "resultat_humain": ("str", "Non renseigné"),
         "nombre": ("Int64", 0),
         "dont_nombre_blesse": ("Int64", 0)
     }
     
     df = ensure_columns(df, columns)
+    
+    # Remplir les NULL dans les colonnes qui font partie de la clé primaire
+    df.loc[:, 'categorie_personne'] = df['categorie_personne'].fillna("Non renseigné")
+    df.loc[:, 'resultat_humain'] = df['resultat_humain'].fillna("Non renseigné")
+    
+    # Contrainte d'unicité : supprimer doublons sur (operation_id, categorie_personne, resultat_humain)
+    # Agréger les nombres pour les doublons
+    df = df.groupby(['operation_id', 'categorie_personne', 'resultat_humain'], as_index=False).agg({
+        'nombre': 'sum',
+        'dont_nombre_blesse': 'sum'
+    })
+    
+    # Assurer dont_nombre_blesse <= nombre
+    df.loc[df['dont_nombre_blesse'] > df['nombre'], 'dont_nombre_blesse'] = df['nombre']
+    
     return df

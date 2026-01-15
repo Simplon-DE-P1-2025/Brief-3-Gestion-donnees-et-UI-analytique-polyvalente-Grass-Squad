@@ -51,16 +51,16 @@ def init_reference_lists():
             category, cat_count = row
             print(f"  - {category}: {cat_count} valeur(s)")
         
+        cursor.close()
+        conn.close()
         return True
         
     except Exception as e:
         conn.rollback()
-        print(f"❌ Erreur lors de l'initialisation: {e}")
-        return False
-        
-    finally:
         cursor.close()
         conn.close()
+        print(f"❌ Erreur lors de l'initialisation: {e}")
+        return False
 
 if __name__ == "__main__":
     print("=" * 60)

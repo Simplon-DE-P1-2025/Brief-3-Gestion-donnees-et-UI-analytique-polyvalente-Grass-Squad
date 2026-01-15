@@ -7,6 +7,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from src.database.load_database import engine
+from src.analysis.meteo_analysis import (
+    get_wind_force_analysis,
+    get_sea_force_analysis,
+    get_gravity_by_sea_force,
+    get_sea_categories_distribution,
+    get_tide_analysis
+)
 
 
 def render(engine):
@@ -43,18 +50,7 @@ def render(engine):
 
     with col_wind:
         st.markdown("#### 🌬️ Vent")
-        q_wind = f"""
-        SELECT
-        FLOOR(o.vent_force)::int AS vent_force,
-        COUNT(DISTINCT o.operation_id) AS operations
-        FROM operations o
-        WHERE {where_sql}
-        AND o.vent_force IS NOT NULL
-        AND FLOOR(o.vent_force) >= 1
-        GROUP BY 1
-        ORDER BY 1;
-        """
-        df_wind = pd.read_sql(q_wind, engine, params=params)
+        df_wind = get_wind_force_analysis(engine, where_sql, params)
 
         if df_wind.empty:
             st.info("Pas de données vent_force ≥ 1.")
@@ -75,18 +71,7 @@ def render(engine):
 
     with col_sea:
         st.markdown("#### 🌊 Mer")
-        q_sea = f"""
-        SELECT
-        FLOOR(o.mer_force)::int AS mer_force,
-        COUNT(DISTINCT o.operation_id) AS operations
-        FROM operations o
-        WHERE {where_sql}
-        AND o.mer_force IS NOT NULL
-        AND FLOOR(o.mer_force) >= 1
-        GROUP BY 1
-        ORDER BY 1;
-        """
-        df_sea = pd.read_sql(q_sea, engine, params=params)
+        df_sea = get_sea_force_analysis(engine, where_sql, params)
 
         if df_sea.empty:
             st.info("Pas de données mer_force ≥ 1.")
@@ -116,19 +101,7 @@ def render(engine):
         "(personnes impliquées au total)."
     )
 
-    q_gravite = """
-    SELECT
-    FLOOR(o.mer_force)::int AS mer_force,
-    SUM(COALESCE(os.nombre_personnes_impliquees,0)) AS personnes_impliquees
-    FROM operations o
-    JOIN operations_stats os USING(operation_id)
-    WHERE o.mer_force IS NOT NULL
-    AND FLOOR(o.mer_force) >= 1
-    AND FLOOR(o.mer_force) <= 12
-    GROUP BY 1
-    ORDER BY 1;
-    """
-    df_grav = pd.read_sql(q_gravite, engine)
+    df_grav = get_gravity_by_sea_force(engine)
 
     grav_top_mer = None
     grav_top_pct = None
@@ -173,28 +146,7 @@ def render(engine):
     st.subheader("Répartition des opérations selon la mer")
     st.caption("On regroupe l’état de la mer en 3 classes pour une lecture instantanée.")
 
-    q_pie3 = f"""
-    SELECT
-    CASE
-        WHEN FLOOR(o.mer_force) BETWEEN 1 AND 2 THEN 'Calme (1-2)'
-        WHEN FLOOR(o.mer_force) BETWEEN 3 AND 4 THEN 'Modéré (3-4)'
-        WHEN FLOOR(o.mer_force) >= 5 THEN 'Difficile (>=5)'
-        ELSE NULL
-    END AS categorie_mer,
-    COUNT(DISTINCT o.operation_id) AS operations
-    FROM operations o
-    WHERE {where_sql}
-    AND o.mer_force IS NOT NULL
-    AND FLOOR(o.mer_force) >= 1
-    GROUP BY 1
-    HAVING CASE
-        WHEN FLOOR(o.mer_force) BETWEEN 1 AND 2 THEN 'Calme (1-2)'
-        WHEN FLOOR(o.mer_force) BETWEEN 3 AND 4 THEN 'Modéré (3-4)'
-        WHEN FLOOR(o.mer_force) >= 5 THEN 'Difficile (>=5)'
-        ELSE NULL
-    END IS NOT NULL;
-    """
-    df_pie3 = pd.read_sql(q_pie3, engine)
+    df_pie3 = get_sea_categories_distribution(engine, where_sql, params)
 
     pie_top_cat = None
     pie_top_pct = None
@@ -229,22 +181,7 @@ def render(engine):
     st.subheader("🌙 Marées — Impact sur l’activité et la charge humaine")
     st.caption("On compare les catégories de marée : volume d’opérations et personnes impliquées.")
 
-    q_maree = """
-    SELECT
-    maree_categorie,
-    COUNT(*) AS operations,
-    SUM(COALESCE(nombre_personnes_impliquees, 0)) AS personnes_impliquees
-    FROM operations_stats
-    WHERE maree_categorie IS NOT NULL
-    AND maree_categorie <> 'moyenne'
-    GROUP BY 1
-    ORDER BY operations DESC;
-    """
-
-
-
-    # ✅ IMPORTANT : on exécute la requête
-    df_maree = pd.read_sql(q_maree, engine)
+    df_maree = get_tide_analysis(engine)
 
     # ✅ Pour éviter un crash dans la section "Analyse" plus bas
     maree_top_cat = None
