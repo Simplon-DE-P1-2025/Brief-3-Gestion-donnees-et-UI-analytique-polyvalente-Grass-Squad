@@ -8,14 +8,111 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
-from src.database.load_database import engine
+from src.app.utils.session_state import init_session_state
+from src.app.utils.data_loader import get_stats_totals, get_map_data, get_db_info
 
 st.set_page_config(page_title="Dashboard - Grass Squad", page_icon="📊", layout="wide")
 
+init_session_state()
+st.session_state.current_page = 'dashboard'
+
+# =========================
+# INIT STATE
+# =========================
+if "action" not in st.session_state:
+    st.session_state.action = "dashboard"
+
+
+# =========================
+# ROUTE : VIEW ALERTE
+# =========================
+if st.session_state.action == "alerte":
+    try:
+        from src.app.view.dashboard_alerte import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Alerte : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+
+# =========================
+# ROUTE : DATE SAISONNALITE
+# =========================
+if st.session_state.action == "date":
+    try:
+        from src.app.view.dashboard_date_saisonnalite import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Date Saisonnalite : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+# =========================
+# ROUTE : ZONE GEOGRAPHIQUE
+# =========================
+if st.session_state.action == "zone":
+    try:
+        from src.app.view.dashboard_zone_geo import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Zone géographique : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+
+# =========================
+# ROUTE : FLOTTEURS
+# =========================
+if st.session_state.action == "flotteurs":
+    try:
+        from src.app.view.dashboard_flotteurs import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Flotteurs : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+
+# =========================
+# ROUTE : METEO
+# =========================
+if st.session_state.action == "meteo":
+    try:
+        from src.app.view.dashboard_meteo import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Meteo : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+
+# =========================
+# ROUTE : RESULTATS HUMAINS
+# =========================
+if st.session_state.action == "resultats":
+    try:
+        from src.app.view.dashboard_resultats_humains import render
+        render(engine)
+    except Exception as e:
+        st.error(f"❌ Erreur dans la view Resultats humains  : {e}")
+        st.exception(e)
+
+    st.stop()  # empêche d'afficher le dashboard en dessous
+
+
+# =========================
+# DASHBOARD NORMAL
+# =========================
 st.title("📊 Dashboard Opérationnel")
 
 try:
-    db_info = pd.read_sql("SELECT current_database(), inet_server_addr(), inet_server_port();", engine)
+    db_info = get_db_info()
     st.success(f"✅ Connecté à la base : {db_info['current_database'][0]}")
     
     # --------------------------
@@ -52,13 +149,9 @@ try:
         col2.metric("👥 Personnes Impliquées", f"{total_involved:,}")
         col3.metric("✅ Personnes Secourues", f"{total_saved:,}")
         col4.metric("📊 Taux de Réussite", f"{success_rate:.2f}%")
-        
     else:
         st.info("Aucune donnée statistique disponible.")
 
-    # --------------------------
-    # Carte
-    # --------------------------
     st.subheader("🗺️ Carte des Opérations")
     
     # Get coordinates for map
@@ -74,6 +167,40 @@ try:
         st.map(df_map)
     else:
         st.info("Aucune donnée GPS disponible pour la carte.")
+
+    # --------------------------
+    # Navigation par boutons
+    # --------------------------
+    st.subheader("🧭 Explorer par dimensions")
+
+    colA, colB, colC = st.columns(3)
+
+    with colA:
+        if st.button("📅 Date & saisonnalité", use_container_width=True):
+            st.session_state.action = "date"
+            st.rerun()
+
+        if st.button("🚨 Alerte (déclencheurs)", use_container_width=True):
+            st.session_state.action = "alerte"
+            st.rerun()
+
+    with colB:
+        if st.button("🗺️ Zone géographique", use_container_width=True):
+            st.session_state.action = "zone"
+            st.rerun()
+
+        if st.button("🌦️ Météo & conditions", use_container_width=True):
+            st.session_state.action = "meteo"
+            st.rerun()
+
+    with colC:
+        if st.button("🚤 Flotteurs (matériel)", use_container_width=True):
+            st.session_state.action = "flotteurs"
+            st.rerun()
+
+        if st.button("👤 Résultats humains", use_container_width=True):
+            st.session_state.action = "resultats"
+            st.rerun()
 
 except Exception as e:
     st.error(f"❌ Erreur lors du chargement du dashboard : {e}")
