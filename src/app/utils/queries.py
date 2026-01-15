@@ -1,0 +1,193 @@
+"""
+Requêtes SQL optimisées pour les opérations
+Centralise toutes les requêtes pour faciliter la maintenance et l'optimisation
+Optimisé avec cache Streamlit pour améliorer les performances
+"""
+import pandas as pd
+import streamlit as st
+from typing import Dict, Any, Optional, Tuple
+from src.crud.audit_crud import log_action
+
+
+class OperationsQueries:
+    """Gestionnaire de requêtes SQL pour les opérations"""
+    
+    @staticmethod
+    @st.cache_data(ttl=120)
+    def count_operations(_engine, search_pattern: Optional[str] = None, search_column: str = "operation_id") -> int:
+        """
+        Compte le nombre total d'opérations avec filtre optionnel
+        
+        Args:
+            engine: Connexion SQLAlchemy
+            search_pattern: Pattern de recherche optionnel
+            search_column: Colonne sur laquelle effectuer la recherche
+            
+        Returns:
+            Nombre total d'opérations
+        """
+        if search_pattern:
+            # Gérer le cas spécial du cross qui nécessite des guillemets
+            column_name = f'"{search_column}"' if search_column == 'cross' else search_column
+            query = f"""
+            SELECT COUNT(*) as total
+            FROM operations 
+            WHERE CAST({column_name} AS TEXT) ILIKE %(search_pattern)s
+            """
+            params = {'search_pattern': f'%{search_pattern}%'}
+            return pd.read_sql(query, _engine, params=params)['total'].iloc[0]
+        else:
+            query = "SELECT COUNT(*) as total FROM operations"
+            return pd.read_sql(query, _engine)['total'].iloc[0]
+    
+    @staticmethod
+    @st.cache_data(ttl=120)
+    def get_operations_paginated(
+        _engine, 
+        limit: int, 
+        offset: int, 
+        search_pattern: Optional[str] = None,
+        search_column: str = "operation_id",
+        sort_column: str = "date_heure_reception_alerte",
+        sort_direction: str = "DESC"
+    ) -> pd.DataFrame:
+        """
+        Récupère les opérations avec pagination et filtre optionnel
+        
+        Args:
+            engine: Connexion SQLAlchemy
+            limit: Nombre d'éléments par page
+            offset: Décalage pour la pagination
+            search_pattern: Pattern de recherche optionnel
+            search_column: Colonne sur laquelle effectuer la recherche
+            sort_column: Colonne de tri
+            sort_direction: Direction du tri (ASC/DESC)
+            
+        Returns:
+            DataFrame des opérations
+        """
+        # Sécuriser les paramètres de tri
+        allowed_columns = {
+            "operation_id": "operation_id",
+            "cross": '"cross"',
+            "evenement": "evenement",
+            "date_heure_reception_alerte": "date_heure_reception_alerte",
+            "departement": "departement"
+        }
+        order_col = allowed_columns.get(sort_column, "date_heure_reception_alerte")
+        order_dir = "DESC" if sort_direction.upper() != "ASC" else "ASC"
+        order_clause = f"ORDER BY {order_col} {order_dir}"
+        base_query = """
+        SELECT 
+            operation_id,
+            "cross",
+            evenement,
+            date_heure_reception_alerte,
+            departement,
+            pourquoi_alerte,
+            latitude,
+            longitude
+        FROM operations 
+        """
+        
+        if search_pattern:
+            # Gérer le cas spécial du cross qui nécessite des guillemets
+            column_name = f'"{search_column}"' if search_column == 'cross' else search_column
+            query = f"""{base_query}
+            WHERE CAST({column_name} AS TEXT) ILIKE %(search_pattern)s
+            {order_clause}
+            LIMIT %(limit)s OFFSET %(offset)s
+            """
+            params = {
+                'search_pattern': f'%{search_pattern}%',
+                'limit': limit,
+                'offset': offset
+            }
+        else:
+            query = f"""{base_query}
+            {order_clause}
+            LIMIT %(limit)s OFFSET %(offset)s
+            """
+            params = {'limit': limit, 'offset': offset}
+        
+        return pd.read_sql(query, _engine, params=params)
+    
+    @staticmethod
+    @st.cache_data(ttl=60)
+    def get_operation_full(_engine, operation_id: int) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """
+        Récupère toutes les données d'une opération (opération, flotteurs, résultats humains, stats)
+        
+        Args:
+            engine: Connexion SQLAlchemy
+            operation_id: ID de l'opération
+            
+        Returns:
+            Tuple de (df_operation, df_flotteurs, df_humain, df_stats)
+        """
+        # Utiliser des requêtes paramétrées pour éviter l'injection SQL
+        query_op = "SELECT * FROM operations WHERE operation_id = %(op_id)s"
+        df_op = pd.read_sql(query_op, _engine, params={'op_id': operation_id})
+        
+        query_flotteurs = "SELECT * FROM flotteurs WHERE operation_id = %(op_id)s"
+        df_flotteurs = pd.read_sql(query_flotteurs, _engine, params={'op_id': operation_id})
+        
+        query_humain = "SELECT * FROM resultats_humain WHERE operation_id = %(op_id)s"
+        df_humain = pd.read_sql(query_humain, _engine, params={'op_id': operation_id})
+        
+        query_stats = "SELECT * FROM operations_stats WHERE operation_id = %(op_id)s"
+        df_stats = pd.read_sql(query_stats, _engine, params={'op_id': operation_id})
+        
+        # Enregistrer l'action dans l'audit
+        if not df_op.empty:
+            log_action(
+                table='operations',
+                action='VIEW',
+                record_id=operation_id,
+                details=f"Consultation complète de l'opération {operation_id} (incluant {len(df_flotteurs)} flotteur(s), {len(df_humain)} résultat(s) humain(s), stats)",
+                sql_query=f"SELECT * FROM operations WHERE operation_id = {operation_id}"
+            )
+        
+        return df_op, df_flotteurs, df_humain, df_stats
+    
+    @staticmethod
+    @st.cache_data(ttl=30)
+    def get_next_operation_id(_engine) -> int:
+        """
+        Récupère le prochain ID d'opération disponible
+        
+        Args:
+            _engine: Connexion SQLAlchemy
+            
+        Returns:
+            Prochain ID disponible
+        """
+        query = "SELECT COALESCE(MAX(operation_id), 0) + 1 as next_id FROM operations"
+        result = pd.read_sql(query, _engine)
+        return int(result['next_id'].iloc[0])
+    
+    @staticmethod
+    @st.cache_data(ttl=60)
+    def get_operation_counts(_engine, operation_id: int) -> Dict[str, int]:
+        """
+        Compte les données liées à une opération
+        
+        Args:
+            _engine: Connexion SQLAlchemy
+            operation_id: ID de l'opération
+            
+        Returns:
+            Dictionnaire avec les compteurs
+        """
+        counts = {}
+        
+        query_flot = "SELECT COUNT(*) as nb FROM flotteurs WHERE operation_id = %(op_id)s"
+        counts['flotteurs'] = pd.read_sql(query_flot, _engine, params={'op_id': operation_id})['nb'].iloc[0]
+        
+        query_hum = "SELECT COUNT(*) as nb FROM resultats_humain WHERE operation_id = %(op_id)s"
+        counts['humains'] = pd.read_sql(query_hum, _engine, params={'op_id': operation_id})['nb'].iloc[0]
+        
+        query_stats = "SELECT COUNT(*) as nb FROM operations_stats WHERE operation_id = %(op_id)s"
+        counts['stats'] = pd.read_sql(query_stats, _engine, params={'op_id': operation_id})['nb'].iloc[0]
+        
+        return counts

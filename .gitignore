@@ -139,6 +139,7 @@ celerybeat.pid
 
 # Environments
 .env
+
 .envrc
 .venv
 env/
@@ -208,3 +209,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Coverage reports
+htmlcov/
+.coverage
+*.pyc
+__pycache__/
+
+# Unit test /
+coverage.xml
+htmlcov/
+.coverage
