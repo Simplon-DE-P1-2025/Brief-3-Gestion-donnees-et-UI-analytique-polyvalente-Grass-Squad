@@ -16,7 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from src.config import PROJECT_ROOT
 from src.ingestion.load_raw_data import load_all_raw_data
-from src.validation.run_validation import clean_then_validate_pipeline
+from src.validation.run_validation import validate_clean_pipeline
 
 # Charger les variables d'environnement depuis .env
 load_dotenv(PROJECT_ROOT / ".env")
@@ -168,7 +168,7 @@ def load_and_prepare_all_data(rejected_path="data/rejected"):
         "resultats_humain": df_resultats_humain
     }
 
-    validated_data = clean_then_validate_pipeline(
+    validated_data = validate_clean_pipeline(
         dataframes=dataframes,
         rejected_path=rejected_path
     )

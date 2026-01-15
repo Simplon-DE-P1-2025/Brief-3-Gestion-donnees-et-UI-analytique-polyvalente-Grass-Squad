@@ -16,31 +16,43 @@ from src.cleaning.transformation import (
 )
 
 # ======================================================
-# PIPELINE : CLEAN -> VALIDATE
+# PIPELINE : VALIDATE RAW -> CLEAN -> VALIDATE CLEANED
 # ======================================================
-def clean_then_validate_pipeline(
+def validate_clean_pipeline(
     dataframes: dict,
     rejected_path: str = "data/rejected",
-    lazy_config: dict | None = None
+    lazy_config_raw: dict | None = None,
+    lazy_config_clean: dict | None = None
 ):
     """
     Pipeline Data Engineer :
-
+    
     RAW
+      -> VALIDATE (souple)
       -> CLEAN
-      -> VALIDATE
-         -> rejected.csv
+      -> VALIDATE (strict)
       -> CURATED
+      -> rejected.csv
     """
 
     os.makedirs(rejected_path, exist_ok=True)
 
-    if lazy_config is None:
-        lazy_config = {
-            "operations": False,
-            "operations_stats": False,
+    # Par défaut, la validation RAW est en lazy (souple) pour toutes
+    if lazy_config_raw is None:
+        lazy_config_raw = {
+            "operations": True,
+            "operations_stats": True,
             "flotteurs": True,
             "resultats_humain": True
+        }
+
+    # Validation après nettoyage est stricte par défaut
+    if lazy_config_clean is None:
+        lazy_config_clean = {
+            "operations": False,
+            "operations_stats": False,
+            "flotteurs": False,
+            "resultats_humain": False
         }
 
     schemas = {
@@ -62,18 +74,34 @@ def clean_then_validate_pipeline(
     for table_name, df_raw in dataframes.items():
         schema = schemas[table_name]
         clean_fn = cleaners[table_name]
-        lazy = lazy_config.get(table_name, True)
+        lazy_raw = lazy_config_raw.get(table_name, True)
+        lazy_clean = lazy_config_clean.get(table_name, False)
 
-        df_clean = clean_fn(df_raw)
+        print(f"\n--- Pipeline pour : {table_name} ---")
 
+        # 1️⃣ Validation RAW (souple)
         try:
-            df_valid = schema.validate(df_clean, lazy=lazy)
-            results[table_name] = {"curated": df_valid, "rejected": None}
-
+            df_valid_raw = schema.validate(df_raw, lazy=lazy_raw)
+            print(f"Validation RAW OK pour {table_name}")
         except pa.errors.SchemaErrors as err:
-            rejected_file = os.path.join(rejected_path, f"{table_name}_rejected.csv")
-            err.failure_cases.to_csv(rejected_file, index=False)
-            results[table_name] = {"curated": err.valid_data, "rejected": err.failure_cases}
-            print(f"   ➜ fichier : {rejected_file}")
+            rejected_file_raw = os.path.join(rejected_path, f"{table_name}_rejected_raw.csv")
+            err.failure_cases.to_csv(rejected_file_raw, index=False)
+            df_valid_raw = err.data
+            print(f"   ➜ RAW rejected sauvegardé dans : {rejected_file_raw}")
+
+        # 2️⃣ Nettoyage
+        df_clean = clean_fn(df_valid_raw)
+        print(f"Nettoyage terminé pour {table_name}")
+
+        # 3️⃣ Validation après nettoyage (stricte)
+        try:
+            df_valid_clean = schema.validate(df_clean, lazy=lazy_clean)
+            results[table_name] = {"curated": df_valid_clean, "rejected": None}
+            print(f"Validation CLEAN OK pour {table_name}")
+        except pa.errors.SchemaErrors as err:
+            rejected_file_clean = os.path.join(rejected_path, f"{table_name}_rejected_clean.csv")
+            err.failure_cases.to_csv(rejected_file_clean, index=False)
+            results[table_name] = {"curated": err.data, "rejected": err.failure_cases}
+            print(f"   ➜ CLEAN rejected sauvegardé dans : {rejected_file_clean}")
 
     return results

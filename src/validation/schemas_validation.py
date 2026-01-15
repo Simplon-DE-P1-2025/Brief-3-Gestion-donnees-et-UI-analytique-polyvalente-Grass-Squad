@@ -27,8 +27,8 @@ schema_operations = pa.DataFrameSchema({
     "vent_direction_categorie": Column(str, Check.isin(["nord", "nord-est", "est", "sud-est", "sud", "sud-ouest", "ouest", "nord-ouest"]), nullable=True),
     "vent_force": Column(float, Check(lambda x: (0 <= x) & (x <= 12)), nullable=True),
     "mer_force": Column(float, Check(lambda x: (0 <= x) & (x <= 9)), nullable=True),
-    "date_heure_reception_alerte": Column(pa.DateTime, nullable=False),
-    "date_heure_fin_operation": Column(pa.DateTime, nullable=True),
+    "date_heure_reception_alerte": Column(str, nullable=False),
+    "date_heure_fin_operation": Column(str, nullable=True),
     "numero_sitrep": Column(pd.Int64Dtype(), Check.greater_than_or_equal_to(1), nullable=True),
     "cross_sitrep": Column(str, nullable=True),
     "fuseau_horaire": Column(str, nullable=True),   
@@ -40,7 +40,7 @@ schema_operations = pa.DataFrameSchema({
 # -----------------------------
 schema_operations_stats = pa.DataFrameSchema({
     "operation_id": Column(int, nullable=False),
-    "date": Column(pa.Date, nullable=False),
+    "date": Column(str, nullable=False),
     "annee": Column(int, Check.ge(1980), nullable=False),
     "mois": Column(int, Check.in_range(1,12), nullable=False),
     "jour": Column(int, Check.in_range(1,31), nullable=False),
@@ -122,7 +122,7 @@ schema_flotteurs = pa.DataFrameSchema({
 schema_resultats_humain = pa.DataFrameSchema({
     "operation_id": Column(int, nullable=False),
     "categorie_personne": Column(str, nullable=False),
-    "resultat_humain": Column(str, nullable=False),
+    "resultat_humain": Column(str, nullable=True),
     "nombre": Column(int, Check.ge(0), nullable=False),
     "dont_nombre_blesse": Column(int, Check.ge(0), nullable=True)
 })
