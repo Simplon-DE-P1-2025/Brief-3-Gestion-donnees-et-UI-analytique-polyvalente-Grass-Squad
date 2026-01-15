@@ -3,18 +3,12 @@ CRUD operations pour la table reference_lists
 Gestion des listes de référence prédéfinies
 """
 from src.database.load_database import get_db_connection
+import logging
+
+logger = logging.getLogger(__name__)
+from src.crud.audit_crud import log_action
 
 def get_reference_list_values(category: str, active_only: bool = True):
-    """
-    Récupère toutes les valeurs d'une catégorie de liste de référence
-    
-    Args:
-        category: Le nom de la catégorie (ex: 'type_operation', 'pavillon')
-        active_only: Si True, retourne uniquement les valeurs actives
-    
-    Returns:
-        Liste de tuples (id, value, description)
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -36,18 +30,13 @@ def get_reference_list_values(category: str, active_only: bool = True):
         
         cursor.execute(query, (category,))
         results = cursor.fetchall()
+        
         return results
     finally:
         cursor.close()
         conn.close()
 
 def get_all_categories():
-    """
-    Récupère toutes les catégories distinctes
-    
-    Returns:
-        Liste des catégories
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -59,21 +48,13 @@ def get_all_categories():
         """
         cursor.execute(query)
         results = [row[0] for row in cursor.fetchall()]
+        
         return results
     finally:
         cursor.close()
         conn.close()
 
 def get_reference_list_by_id(ref_id: int):
-    """
-    Récupère une entrée de référence par son ID
-    
-    Args:
-        ref_id: ID de l'entrée
-    
-    Returns:
-        Tuple (id, category, value, display_order, is_active, description)
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -85,24 +66,13 @@ def get_reference_list_by_id(ref_id: int):
         """
         cursor.execute(query, (ref_id,))
         result = cursor.fetchone()
+        
         return result
     finally:
         cursor.close()
         conn.close()
 
 def insert_reference_list_value(category: str, value: str, display_order: int = 0, description: str = None):
-    """
-    Insère une nouvelle valeur dans une liste de référence
-    
-    Args:
-        category: La catégorie
-        value: La valeur à insérer
-        display_order: L'ordre d'affichage
-        description: Description optionnelle
-    
-    Returns:
-        ID de l'entrée créée ou None si erreur
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -112,13 +82,25 @@ def insert_reference_list_value(category: str, value: str, display_order: int = 
             VALUES (%s, %s, %s, %s)
             RETURNING id
         """
+        sql_query = cursor.mogrify(query, (category, value, display_order, description)).decode('utf-8')
         cursor.execute(query, (category, value, display_order, description))
         new_id = cursor.fetchone()[0]
         conn.commit()
+        
+        # Enregistrer l'action dans l'audit
+        log_action(
+            table='reference_lists',
+            action='INSERT',
+            record_id=str(new_id),
+            new_values={'category': category, 'value': value, 'display_order': display_order, 'description': description},
+            details=f"Nouvelle valeur de référence - Catégorie: {category}, Valeur: {value}",
+            sql_query=sql_query
+        )
+        
         return new_id
     except Exception as e:
         conn.rollback()
-        print(f"Erreur lors de l'insertion: {e}")
+        logger.error(f"Insert reference list error: {e}")
         return None
     finally:
         cursor.close()
@@ -143,6 +125,12 @@ def update_reference_list_value(ref_id: int, value: str = None, display_order: i
     cursor = conn.cursor()
     
     try:
+        # Récupérer les anciennes valeurs pour l'audit
+        cursor.execute("SELECT * FROM reference_lists WHERE id = %s", (ref_id,))
+        old_record = cursor.fetchone()
+        old_columns = [desc[0] for desc in cursor.description]
+        old_values = dict(zip(old_columns, old_record)) if old_record else {}
+        
         updates = []
         params = []
         
@@ -169,68 +157,113 @@ def update_reference_list_value(ref_id: int, value: str = None, display_order: i
             WHERE id = %s
         """
         
+        sql_query = cursor.mogrify(query, params).decode('utf-8')
         cursor.execute(query, params)
         conn.commit()
-        return cursor.rowcount > 0
+        success = cursor.rowcount > 0
+        
+        # Enregistrer l'action dans l'audit
+        if success and old_values:
+            new_values = {}
+            if value is not None: new_values['value'] = value
+            if display_order is not None: new_values['display_order'] = display_order
+            if is_active is not None: new_values['is_active'] = is_active
+            if description is not None: new_values['description'] = description
+            
+            log_action(
+                table='reference_lists',
+                action='UPDATE',
+                record_id=str(ref_id),
+                old_values=old_values,
+                new_values=new_values,
+                details=f"Valeur de référence mise à jour - ID: {ref_id}",
+                sql_query=sql_query
+            )
+        
+        return success
     except Exception as e:
         conn.rollback()
-        print(f"Erreur lors de la mise à jour: {e}")
+        logger.error(f"Update reference list error: {e}")
         return False
     finally:
         cursor.close()
         conn.close()
 
 def delete_reference_list_value(ref_id: int):
-    """
-    Supprime une entrée de liste de référence
-    
-    Args:
-        ref_id: ID de l'entrée à supprimer
-    
-    Returns:
-        True si succès, False sinon
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
+        # Récupérer les données avant suppression pour l'audit
+        cursor.execute("SELECT * FROM reference_lists WHERE id = %s", (ref_id,))
+        old_record = cursor.fetchone()
+        old_columns = [desc[0] for desc in cursor.description]
+        old_values = dict(zip(old_columns, old_record)) if old_record else {}
+        
         query = "DELETE FROM reference_lists WHERE id = %s"
+        sql_query = cursor.mogrify(query, (ref_id,)).decode('utf-8')
         cursor.execute(query, (ref_id,))
         conn.commit()
-        return cursor.rowcount > 0
+        success = cursor.rowcount > 0
+        
+        # Enregistrer l'action dans l'audit
+        if success and old_values:
+            log_action(
+                table='reference_lists',
+                action='DELETE',
+                record_id=str(ref_id),
+                old_values=old_values,
+                details=f"Valeur de référence supprimée - ID: {ref_id}, Catégorie: {old_values.get('category')}",
+                sql_query=sql_query
+            )
+        
+        return success
     except Exception as e:
         conn.rollback()
-        print(f"Erreur lors de la suppression: {e}")
+        logger.error(f"Delete reference list error: {e}")
         return False
     finally:
         cursor.close()
         conn.close()
 
 def toggle_reference_list_status(ref_id: int):
-    """
-    Bascule le statut actif/inactif d'une entrée
-    
-    Args:
-        ref_id: ID de l'entrée
-    
-    Returns:
-        True si succès, False sinon
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
+        # Récupérer les anciennes valeurs pour l'audit
+        cursor.execute("SELECT * FROM reference_lists WHERE id = %s", (ref_id,))
+        old_record = cursor.fetchone()
+        old_columns = [desc[0] for desc in cursor.description]
+        old_values = dict(zip(old_columns, old_record)) if old_record else {}
+        
         query = """
             UPDATE reference_lists 
             SET is_active = NOT is_active
             WHERE id = %s
         """
+        sql_query = cursor.mogrify(query, (ref_id,)).decode('utf-8')
         cursor.execute(query, (ref_id,))
         conn.commit()
-        return cursor.rowcount > 0
+        success = cursor.rowcount > 0
+        
+        # Enregistrer l'action dans l'audit
+        if success and old_values:
+            new_status = not old_values.get('is_active', False)
+            log_action(
+                table='reference_lists',
+                action='UPDATE',
+                record_id=str(ref_id),
+                old_values=old_values,
+                new_values={'is_active': new_status},
+                details=f"Statut modifié - ID: {ref_id}, Nouveau statut: {'Actif' if new_status else 'Inactif'}",
+                sql_query=sql_query
+            )
+        
+        return success
     except Exception as e:
         conn.rollback()
-        print(f"Erreur lors du changement de statut: {e}")
+        logger.error(f"Toggle reference list status error: {e}")
         return False
     finally:
         cursor.close()

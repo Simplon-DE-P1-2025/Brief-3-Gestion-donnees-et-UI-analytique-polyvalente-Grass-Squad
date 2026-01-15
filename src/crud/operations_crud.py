@@ -1,7 +1,7 @@
 from src.database.load_database import get_db_connection
+from src.crud.audit_crud import log_action
 
 def insert_operation(data: dict):
-    """Insère une nouvelle opération et retourne l'ID généré"""
     # Seuls cross et date_heure_reception_alerte sont obligatoires
     # On ajoute les valeurs par défaut pour les champs manquants selon la vraie structure de la table
     defaults = {
@@ -64,28 +64,79 @@ def insert_operation(data: dict):
     """
     conn = get_db_connection()
     cur = conn.cursor()
+    
+    # Formatage de la requête SQL avec les vraies valeurs pour l'audit
+    sql_for_audit = cur.mogrify(query, full_data).decode('utf-8')
+    
     cur.execute(query, full_data)
     operation_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
+    
+    # Enregistrer l'action dans l'audit avec la requête SQL
+    log_action(
+        table='operations',
+        action='INSERT',
+        record_id=operation_id,
+        new_values=full_data,
+        details=f"Nouvelle opération créée - CROSS: {full_data.get('cross')}",
+        sql_query=sql_for_audit
+    )
+    
     return operation_id
 
 def select_operation(operation_id: int):
     """Récupère une opération par son ID"""
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM operations WHERE operation_id = %s",
-        (operation_id,)
-    )
+    query = "SELECT * FROM operations WHERE operation_id = %s"
+    cur.execute(query, (operation_id,))
     result = cur.fetchone()
+    
+    if result:
+        columns = [desc[0] for desc in cur.description]
+        operation = dict(zip(columns, result))
+        
+        # Enregistrer l'action dans l'audit
+        log_action(
+            table='operations',
+            action='VIEW',
+            record_id=operation_id,
+            details=f"Consultation de l'opération {operation_id}",
+            sql_query=f"SELECT * FROM operations WHERE operation_id = {operation_id}"
+        )
+    else:
+        operation = None
+    
     cur.close()
     conn.close()
-    return result
+    return operation
 
 def update_operation(operation_id: int, data: dict):
     """Met à jour une opération existante"""
+    # Récupérer les anciennes valeurs pour l'audit
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM operations WHERE operation_id = %s", (operation_id,))
+    old_record = cur.fetchone()
+    old_columns = [desc[0] for desc in cur.description]
+    old_values_full = dict(zip(old_columns, old_record)) if old_record else {}
+    
+    # Identifier seulement les valeurs qui changent
+    changed_old_values = {}
+    changed_new_values = {}
+    
+    for key, new_value in data.items():
+        if key in old_values_full:
+            old_value = old_values_full[key]
+            # Comparer les valeurs (gérer None et NaN)
+            if old_value != new_value:
+                # Vérifier si ce n'est pas juste None vs None ou NaN
+                if not (old_value is None and new_value is None):
+                    changed_old_values[key] = old_value
+                    changed_new_values[key] = new_value
+    
     fields = []
     values = []
     for key, value in data.items():
@@ -100,25 +151,58 @@ def update_operation(operation_id: int, data: dict):
     
     query = f"UPDATE operations SET {', '.join(fields)} WHERE operation_id = %s"
     
-    conn = get_db_connection()
-    cur = conn.cursor()
+    # Formater la requête SQL pour l'audit
+    sql_for_audit = cur.mogrify(query, tuple(values)).decode('utf-8')
+    
     cur.execute(query, tuple(values))
     conn.commit()
     cur.close()
     conn.close()
+    
+    # Enregistrer l'action dans l'audit seulement si des changements existent
+    if changed_old_values:
+        log_action(
+            table='operations',
+            action='UPDATE',
+            record_id=operation_id,
+            old_values=changed_old_values,
+            new_values=changed_new_values,
+            details=f"Modification de l'opération {operation_id} - {len(changed_old_values)} champ(s) modifié(s)",
+            sql_query=sql_for_audit
+        )
+    
+    return True
 
 def delete_operation(operation_id: int):
     """Supprime une opération et toutes ses données associées (cascade)"""
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Récupérer les données avant suppression pour l'audit
+    cur.execute("SELECT * FROM operations WHERE operation_id = %s", (operation_id,))
+    old_record = cur.fetchone()
+    old_columns = [desc[0] for desc in cur.description]
+    old_values = dict(zip(old_columns, old_record)) if old_record else {}
+    
     # Suppression en cascade (l'ordre est important à cause des FK)
     cur.execute("DELETE FROM operations_stats WHERE operation_id = %s", (operation_id,))
     cur.execute("DELETE FROM resultats_humain WHERE operation_id = %s", (operation_id,))
     cur.execute("DELETE FROM flotteurs WHERE operation_id = %s", (operation_id,))
-    cur.execute("DELETE FROM operations WHERE operation_id = %s", (operation_id,))
+    delete_query = "DELETE FROM operations WHERE operation_id = %s"
+    cur.execute(delete_query, (operation_id,))
     
     conn.commit()
     cur.close()
     conn.close()
+    
+    # Enregistrer l'action dans l'audit
+    log_action(
+        table='operations',
+        action='DELETE',
+        record_id=operation_id,
+        old_values=old_values,
+        details=f"Suppression de l'opération {operation_id} et toutes ses données associées",
+        sql_query=f"DELETE FROM operations WHERE operation_id = {operation_id}"
+    )
+    
     return True
