@@ -58,6 +58,18 @@ CREATE INDEX idx_operations_cross ON operations("cross");
 CREATE INDEX idx_operations_departement ON operations(departement);
 CREATE INDEX idx_operations_date_reception ON operations(date_heure_reception_alerte);
 CREATE INDEX idx_operations_date_fin ON operations(date_heure_fin_operation);
+CREATE INDEX idx_operations_evenement ON operations(evenement);
+CREATE INDEX idx_operations_categorie_evenement ON operations(categorie_evenement);
+CREATE INDEX idx_operations_autorite ON operations(autorite);
+CREATE INDEX idx_operations_est_metropolitain ON operations(est_metropolitain);
+CREATE INDEX idx_operations_zone_responsabilite ON operations(zone_responsabilite);
+CREATE INDEX idx_operations_numero_sitrep ON operations(numero_sitrep);
+-- Index composite pour les requêtes par CROSS et date
+CREATE INDEX idx_operations_cross_date ON operations("cross", date_heure_reception_alerte);
+-- Index composite pour les requêtes par département et date
+CREATE INDEX idx_operations_dept_date ON operations(departement, date_heure_reception_alerte);
+-- Index spatial pour les coordonnées géographiques
+CREATE INDEX idx_operations_lat_long ON operations(latitude, longitude) WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
 
 -- =========================
 -- TABLE FLOTTEURS
@@ -78,6 +90,13 @@ CREATE INDEX idx_flotteurs_operation_id ON flotteurs(operation_id);
 CREATE INDEX idx_flotteurs_resultat ON flotteurs(resultat_flotteur);
 CREATE INDEX idx_flotteurs_type ON flotteurs(type_flotteur);
 CREATE INDEX idx_flotteurs_categorie ON flotteurs(categorie_flotteur);
+CREATE INDEX idx_flotteurs_pavillon ON flotteurs(pavillon);
+CREATE INDEX idx_flotteurs_numero_immat ON flotteurs(numero_immatriculation) WHERE numero_immatriculation IS NOT NULL;
+-- Index composite pour la clé primaire fonctionnelle
+CREATE UNIQUE INDEX idx_flotteurs_operation_ordre ON flotteurs(operation_id, numero_ordre);
+-- Index composite pour analyses par type et résultat
+CREATE INDEX idx_flotteurs_type_resultat ON flotteurs(type_flotteur, resultat_flotteur);
+CREATE INDEX idx_flotteurs_categorie_resultat ON flotteurs(categorie_flotteur, resultat_flotteur);
 
 -- =========================
 -- TABLE RESULTATS HUMAIN
@@ -94,6 +113,14 @@ CREATE TABLE resultats_humain (
 
 CREATE INDEX idx_resultats_humain_operation_id ON resultats_humain(operation_id);
 CREATE INDEX idx_resultats_humain_resultat ON resultats_humain(resultat_humain);
+CREATE INDEX idx_resultats_humain_categorie ON resultats_humain(categorie_personne);
+-- Index composite pour la clé primaire fonctionnelle
+CREATE UNIQUE INDEX idx_resultats_humain_operation_cat_res ON resultats_humain(operation_id, categorie_personne, resultat_humain);
+-- Index composite pour analyses par catégorie et résultat
+CREATE INDEX idx_resultats_humain_cat_res ON resultats_humain(categorie_personne, resultat_humain);
+-- Index pour les agrégations de nombre
+CREATE INDEX idx_resultats_humain_nombre ON resultats_humain(nombre) WHERE nombre > 0;
+CREATE INDEX idx_resultats_humain_blesses ON resultats_humain(dont_nombre_blesse) WHERE dont_nombre_blesse > 0;
 
 -- =========================
 -- TABLE OPERATIONS_STATS
@@ -187,30 +214,46 @@ CREATE INDEX idx_operations_stats_date ON operations_stats(date);
 CREATE INDEX idx_operations_stats_annee ON operations_stats(annee);
 CREATE INDEX idx_operations_stats_phase_journee ON operations_stats(phase_journee);
 CREATE INDEX idx_operations_stats_plongee ON operations_stats(concerne_plongee);
+CREATE INDEX idx_operations_stats_mois ON operations_stats(mois);
+CREATE INDEX idx_operations_stats_jour_semaine ON operations_stats(jour_semaine);
+CREATE INDEX idx_operations_stats_est_weekend ON operations_stats(est_weekend);
+CREATE INDEX idx_operations_stats_est_jour_ferie ON operations_stats(est_jour_ferie);
+CREATE INDEX idx_operations_stats_est_vacances ON operations_stats(est_vacances_scolaires);
+CREATE INDEX idx_operations_stats_wingfoil ON operations_stats(implique_wingfoil);
+CREATE INDEX idx_operations_stats_clandestins ON operations_stats(avec_clandestins);
+CREATE INDEX idx_operations_stats_stm ON operations_stats(est_dans_stm);
+CREATE INDEX idx_operations_stats_dst ON operations_stats(est_dans_dst);
+CREATE INDEX idx_operations_stats_prefecture ON operations_stats(prefecture_maritime);
+CREATE INDEX idx_operations_stats_maree_categorie ON operations_stats(maree_categorie);
+-- Index composite pour analyses temporelles
+CREATE INDEX idx_operations_stats_annee_mois ON operations_stats(annee, mois);
+CREATE INDEX idx_operations_stats_annee_semaine ON operations_stats(annee_semaine);
+-- Index pour les opérations sans flotteur
+CREATE INDEX idx_operations_stats_sans_flotteur ON operations_stats(sans_flotteur_implique);
+-- Index pour les personnes impliquées (optimisation agrégations)
+CREATE INDEX idx_operations_stats_nb_impliquees ON operations_stats(nombre_personnes_impliquees) WHERE nombre_personnes_impliquees > 0;
+CREATE INDEX idx_operations_stats_nb_secourues ON operations_stats(nombre_personnes_secourues) WHERE nombre_personnes_secourues > 0;
+CREATE INDEX idx_operations_stats_nb_decedees ON operations_stats(nombre_personnes_tous_deces) WHERE nombre_personnes_tous_deces > 0;
+CREATE INDEX idx_operations_stats_nb_disparues ON operations_stats(nombre_personnes_disparues) WHERE nombre_personnes_disparues > 0;
 
 -- =========================
 -- TABLE AUDIT_LOG (Historique complet des opérations)
 -- =========================
--- Cette table enregistre toutes les transactions (INSERT, UPDATE, DELETE, VIEW)
--- effectuées sur les tables principales de la base de données.
 
-DROP TABLE IF EXISTS audit_log CASCADE;
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
-    table_name TEXT NOT NULL,           -- Nom de la table concernée
-    action TEXT NOT NULL,                -- Type d'action: INSERT, UPDATE, DELETE, VIEW
-    record_id TEXT NOT NULL,             -- ID de l'enregistrement concerné
-    user_name TEXT DEFAULT 'system',     -- Utilisateur ayant effectué l'action
-    old_values JSONB,                    -- Valeurs avant modification (pour UPDATE/DELETE)
-    new_values JSONB,                    -- Nouvelles valeurs (pour INSERT/UPDATE)
-    details TEXT,                        -- Détails supplémentaires sur l'action
-    sql_query TEXT,                      -- Requête SQL exécutée
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- Date et heure de l'action
+    table_name TEXT NOT NULL,
+    action TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    user_name TEXT DEFAULT 'system',
+    old_values JSONB,
+    new_values JSONB,
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index pour améliorer les performances des requêtes d'audit
-CREATE INDEX idx_audit_log_table_name ON audit_log(table_name);
-CREATE INDEX idx_audit_log_action ON audit_log(action);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at DESC);
-CREATE INDEX idx_audit_log_record_id ON audit_log(record_id);
-CREATE INDEX idx_audit_log_user_name ON audit_log(user_name);
+-- Index pour améliorer les performances des requêtes
+CREATE INDEX IF NOT EXISTS idx_audit_log_table_name ON audit_log(table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_record_id ON audit_log(record_id);

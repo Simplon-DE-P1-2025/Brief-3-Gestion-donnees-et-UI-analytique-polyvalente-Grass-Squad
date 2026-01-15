@@ -20,6 +20,7 @@ from src.crud.reference_lists_crud import (
     get_reference_list_by_id
 )
 from src.database.load_database import get_db_connection
+from src.database.init_reference_lists import init_reference_lists
 
 init_session_state()
 st.session_state.current_page = 'admin'
@@ -82,6 +83,52 @@ CATEGORY_DESCRIPTIONS = {
 def show_categories_list():
     """Affiche toutes les catégories disponibles"""
     st.subheader("📚 Gestion des Listes de Référence")
+    
+    # Bouton pour initialiser/réinitialiser les listes de référence
+    with st.expander("🔧 Initialisation des listes de référence", expanded=False):
+        st.warning("⚠️ Cette action va exécuter le script SQL pour créer/réinitialiser la table reference_lists")
+        st.info("""
+        **Cette opération va :**
+        - 🗑️ Supprimer la table `reference_lists` si elle existe
+        - ✨ Créer une nouvelle table `reference_lists`
+        - 📝 Insérer toutes les valeurs par défaut
+        - ⚠️ **Attention : Les valeurs personnalisées seront perdues !**
+        """)
+        
+        if 'confirm_init_ref' not in st.session_state:
+            st.session_state.confirm_init_ref = False
+        
+        if not st.session_state.confirm_init_ref:
+            if st.button("🔄 Initialiser les listes de référence", type="secondary", use_container_width=True):
+                st.session_state.confirm_init_ref = True
+                st.rerun()
+        else:
+            st.error("⚠️ **Êtes-vous sûr ? Cette action est irréversible !**")
+            col_yes, col_no = st.columns(2)
+            
+            with col_yes:
+                if st.button("✅ Confirmer l'initialisation", type="primary", use_container_width=True):
+                    with st.spinner("Initialisation en cours..."):
+                        try:
+                            success = init_reference_lists()
+                            if success:
+                                get_categories_with_counts.clear()
+                                st.success("✅ Listes de référence initialisées avec succès !")
+                                st.session_state.confirm_init_ref = False
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec de l'initialisation")
+                                st.session_state.confirm_init_ref = False
+                        except Exception as e:
+                            st.error(f"❌ Erreur lors de l'initialisation : {e}")
+                            st.session_state.confirm_init_ref = False
+            
+            with col_no:
+                if st.button("❌ Annuler", use_container_width=True):
+                    st.session_state.confirm_init_ref = False
+                    st.rerun()
+    
+    st.divider()
     
     st.info("💡 Sélectionnez une catégorie pour gérer ses valeurs")
     

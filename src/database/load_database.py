@@ -53,13 +53,48 @@ def get_db_connection(config=DB_CONFIG):
 
 
 def create_tables(conn):
-    """Crée les tables en utilisant database.sql"""
+    """Crée les tables en utilisant database.sql et initialise les listes de référence"""
     cursor = conn.cursor()
     try:
+        # Créer les tables principales
         with open(SQL_SCRIPT_PATH, 'r', encoding='utf-8') as f:
             sql_script = f.read()
         cursor.execute(sql_script)
         conn.commit()
+        print("✅ Tables principales créées")
+        
+        # Initialiser automatiquement les listes de référence
+        ref_lists_sql_path = PROJECT_ROOT / "src" / "database" / "reference_lists.sql"
+        if ref_lists_sql_path.exists():
+            # Vérifier si la table existe déjà et a des données
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'reference_lists'
+                )
+            """)
+            table_exists = cursor.fetchone()[0]
+            
+            if table_exists:
+                cursor.execute("SELECT COUNT(*) FROM reference_lists")
+                count = cursor.fetchone()[0]
+                if count > 0:
+                    print(f"ℹ️  Table reference_lists déjà initialisée ({count} valeurs)")
+                    return
+            
+            # Initialiser les listes de référence
+            with open(ref_lists_sql_path, 'r', encoding='utf-8') as f:
+                ref_lists_sql = f.read()
+            cursor.execute(ref_lists_sql)
+            conn.commit()
+            
+            # Vérifier le nombre de valeurs insérées
+            cursor.execute("SELECT COUNT(*) FROM reference_lists")
+            count = cursor.fetchone()[0]
+            print(f"✅ Listes de référence initialisées ({count} valeurs)")
+        else:
+            print("⚠️  Fichier reference_lists.sql introuvable - listes de référence non initialisées")
+            
     except Exception as e:
         conn.rollback()
         raise

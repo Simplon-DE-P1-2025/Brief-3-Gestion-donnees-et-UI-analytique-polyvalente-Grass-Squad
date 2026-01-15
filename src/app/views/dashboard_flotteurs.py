@@ -10,6 +10,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 from src.database.load_database import engine
+from src.analysis.flotteurs_analysis import (
+    get_operations_coverage,
+    get_flotteurs_coverage,
+    get_operations_by_category,
+    get_charge_humaine_by_category,
+    get_criticite_by_category,
+    get_top_categories_for_outcomes,
+    get_outcomes_by_category,
+    get_pavillons_stats
+)
 
 
 def render(engine):
@@ -53,25 +63,12 @@ def render(engine):
     # ======================================================
     st.subheader("📌 Indicateurs clés")
 
-    q_cov = """
-    SELECT
-    COUNT(*) AS ops_total,
-    COUNT(*) FILTER (WHERE sans_flotteur_implique = TRUE) AS ops_sans_flotteur
-    FROM operations_stats;
-    """
-    cov = pd.read_sql(q_cov, engine).iloc[0]
+    cov = get_operations_coverage(engine)
     ops_total = int(cov.ops_total or 0)
     ops_sans_flotteur = int(cov.ops_sans_flotteur or 0)
     pct_sf = (ops_sans_flotteur / ops_total * 100) if ops_total else 0.0
 
-    q_flot = f"""
-    SELECT
-    COUNT(*) AS flotteurs_total,
-    COUNT(DISTINCT f.operation_id) AS operations_avec_flotteur
-    FROM flotteurs f
-    WHERE {where_sql};
-    """
-    fl = pd.read_sql(q_flot, engine, params=params).iloc[0]
+    fl = get_flotteurs_coverage(engine, where_sql, params)
     flotteurs_total = int(fl.flotteurs_total or 0)
     ops_avec_flotteur = int(fl.operations_avec_flotteur or 0)
     avg_flotteurs_par_op = (flotteurs_total / ops_avec_flotteur) if ops_avec_flotteur else 0.0
@@ -96,20 +93,7 @@ def render(engine):
     st.subheader("⚓ Quels flotteurs déclenchent le plus d’opérations ?")
     st.caption("Ici on ne compte pas seulement les flotteurs : on compte les **opérations distinctes** associées à chaque catégorie.")
 
-    q_ops_cat = f"""
-    SELECT
-    NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-    COUNT(DISTINCT f.operation_id) AS operations,
-    COUNT(*) AS flotteurs_impliques
-    FROM flotteurs f
-    WHERE {where_sql}
-    AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-    GROUP BY 1
-    ORDER BY operations DESC
-    LIMIT %(topn)s;
-    """
-
-    df_ops_cat = pd.read_sql(q_ops_cat, engine, params=params)
+    df_ops_cat = get_operations_by_category(engine, where_sql, params)
 
     if df_ops_cat.empty:
         st.info("Aucune donnée catégorie flotteur pour ce filtre.")
@@ -148,27 +132,7 @@ def render(engine):
     st.subheader("👥 Quels flotteurs sont associés aux opérations les plus lourdes ?")
     st.caption("On mesure la **charge humaine moyenne** par opération pour chaque catégorie. (Filtre volume min pour éviter l’effet petits nombres)")
 
-    q_charge = f"""
-    SELECT
-    NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-    COUNT(DISTINCT f.operation_id) AS operations,
-    SUM(COALESCE(os.nombre_personnes_impliquees,0)) AS personnes_impliquees,
-    ROUND(
-        SUM(COALESCE(os.nombre_personnes_impliquees,0))::numeric
-        / NULLIF(COUNT(DISTINCT f.operation_id),0),
-        2
-    ) AS impliquees_par_operation
-    FROM flotteurs f
-    JOIN operations_stats os
-    ON os.operation_id = f.operation_id
-    WHERE {where_sql}
-    AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-    GROUP BY 1
-    HAVING COUNT(DISTINCT f.operation_id) >= %(min_ops)s
-    ORDER BY impliquees_par_operation DESC
-    LIMIT %(topn)s;
-    """
-    df_charge = pd.read_sql(q_charge, engine, params=params)
+    df_charge = get_charge_humaine_by_category(engine, where_sql, params)
 
     if df_charge.empty:
         st.info("Pas assez de volume pour calculer une charge humaine stable sur les catégories (augmente la période ou baisse le seuil min).")
@@ -210,28 +174,7 @@ def render(engine):
     st.subheader("⚫ Quels flotteurs sont les plus critiques ?")
     st.caption("On compare la proportion de décès parmi les personnes impliquées, par catégorie. (Filtre volume min)")
 
-    q_fatal = f"""
-    SELECT
-    NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-    COUNT(DISTINCT f.operation_id) AS operations,
-    SUM(COALESCE(os.nombre_personnes_impliquees,0)) AS personnes_impliquees,
-    SUM(COALESCE(os.nombre_personnes_decedees,0)) AS deces,
-    ROUND(
-        100.0 * SUM(COALESCE(os.nombre_personnes_decedees,0))::numeric
-        / NULLIF(SUM(COALESCE(os.nombre_personnes_impliquees,0)),0),
-        2
-    ) AS taux_deces_pct
-    FROM flotteurs f
-    JOIN operations_stats os
-    ON os.operation_id = f.operation_id
-    WHERE {where_sql}
-    AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-    GROUP BY 1
-    HAVING COUNT(DISTINCT f.operation_id) >= %(min_ops)s
-    ORDER BY taux_deces_pct DESC
-    LIMIT %(topn)s;
-    """
-    df_fatal = pd.read_sql(q_fatal, engine, params=params)
+    df_fatal = get_criticite_by_category(engine, where_sql, params)
 
     if df_fatal.empty:
         st.info("Pas assez de volume pour comparer la criticité de façon stable (augmente la période ou baisse le seuil min).")
@@ -274,62 +217,16 @@ def render(engine):
     st.caption("On visualise le “coût matériel” : catégories le plus souvent **perdues/détruites** ou récupérées. (Top catégories par volume)")
 
     # D'abord : top catégories par volume de flotteurs (pour limiter le tableau)
-    q_top_cat_for_outcome = f"""
-    SELECT
-    NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-    COUNT(*) AS flotteurs
-    FROM flotteurs f
-    WHERE {where_sql}
-    AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-    GROUP BY 1
-    ORDER BY flotteurs DESC
-    LIMIT %(topn)s;
-    """
-    df_top_cat = pd.read_sql(q_top_cat_for_outcome, engine, params=params)
+    df_top_cat = get_top_categories_for_outcomes(engine, where_sql, params)
 
     if df_top_cat.empty:
         st.info("Aucune catégorie disponible pour l’analyse des issues matérielles.")
     else:
-        q_outcome = f"""
-        SELECT
-        NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-        NULLIF(TRIM(f.resultat_flotteur),'') AS resultat_flotteur,
-        COUNT(*) AS nb
-        FROM flotteurs f
-        WHERE {where_sql}
-        AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-        AND NULLIF(TRIM(f.resultat_flotteur),'') IS NOT NULL
-        AND NULLIF(TRIM(f.categorie_flotteur),'') IN (
-            SELECT categorie_flotteur FROM (
-            {q_top_cat_for_outcome}
-            ) t
-        )
-        GROUP BY 1,2
-        ORDER BY nb DESC;
-        """
-        # ⚠️ On ne peut pas imbriquer directement q_top_cat_for_outcome avec params dans pd.read_sql facilement,
-        # donc on récupère d'abord la liste côté Python.
         top_cats = df_top_cat["categorie_flotteur"].dropna().tolist()
         if not top_cats:
             st.info("Pas de catégories exploitables.")
         else:
-            # Requête paramétrée pour la liste (ANY)
-            q_outcome2 = f"""
-            SELECT
-            NULLIF(TRIM(f.categorie_flotteur),'') AS categorie_flotteur,
-            NULLIF(TRIM(f.resultat_flotteur),'') AS resultat_flotteur,
-            COUNT(*) AS nb
-            FROM flotteurs f
-            WHERE {where_sql}
-            AND NULLIF(TRIM(f.categorie_flotteur),'') IS NOT NULL
-            AND NULLIF(TRIM(f.resultat_flotteur),'') IS NOT NULL
-            AND NULLIF(TRIM(f.categorie_flotteur),'') = ANY(%(topcats)s::text[])
-            GROUP BY 1,2;
-            """
-            params_out = dict(params)
-            params_out["topcats"] = top_cats
-
-            df_out = pd.read_sql(q_outcome2, engine, params=params_out)
+            df_out = get_outcomes_by_category(engine, where_sql, params, top_cats)
 
             if df_out.empty:
                 st.info("Aucune donnée d’issue matérielle pour ces catégories.")
@@ -374,18 +271,7 @@ def render(engine):
     st.subheader("🌍 Pavillons — dimension internationale (Top 15)")
     st.caption("Quels pavillons reviennent le plus souvent parmi les flotteurs impliqués ?")
 
-    q_flag = f"""
-    SELECT
-    NULLIF(TRIM(f.pavillon),'') AS pavillon,
-    COUNT(*) AS flotteurs
-    FROM flotteurs f
-    WHERE {where_sql}
-    AND NULLIF(TRIM(f.pavillon),'') IS NOT NULL
-    GROUP BY 1
-    ORDER BY flotteurs DESC
-    LIMIT 15;
-    """
-    df_flag = pd.read_sql(q_flag, engine, params=params)
+    df_flag = get_pavillons_stats(engine, where_sql, params)
 
     if df_flag.empty:
         st.info("Aucune donnée pavillon exploitable pour ce filtre.")

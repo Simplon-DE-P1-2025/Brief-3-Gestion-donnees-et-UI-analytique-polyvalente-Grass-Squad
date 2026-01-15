@@ -1,8 +1,10 @@
 """
 Requêtes SQL optimisées pour les opérations
 Centralise toutes les requêtes pour faciliter la maintenance et l'optimisation
+Optimisé avec cache Streamlit pour améliorer les performances
 """
 import pandas as pd
+import streamlit as st
 from typing import Dict, Any, Optional, Tuple
 from src.crud.audit_crud import log_action
 
@@ -11,7 +13,8 @@ class OperationsQueries:
     """Gestionnaire de requêtes SQL pour les opérations"""
     
     @staticmethod
-    def count_operations(engine, search_pattern: Optional[str] = None, search_column: str = "operation_id") -> int:
+    @st.cache_data(ttl=120)
+    def count_operations(_engine, search_pattern: Optional[str] = None, search_column: str = "operation_id") -> int:
         """
         Compte le nombre total d'opérations avec filtre optionnel
         
@@ -32,14 +35,15 @@ class OperationsQueries:
             WHERE CAST({column_name} AS TEXT) ILIKE %(search_pattern)s
             """
             params = {'search_pattern': f'%{search_pattern}%'}
-            return pd.read_sql(query, engine, params=params)['total'].iloc[0]
+            return pd.read_sql(query, _engine, params=params)['total'].iloc[0]
         else:
             query = "SELECT COUNT(*) as total FROM operations"
-            return pd.read_sql(query, engine)['total'].iloc[0]
+            return pd.read_sql(query, _engine)['total'].iloc[0]
     
     @staticmethod
+    @st.cache_data(ttl=120)
     def get_operations_paginated(
-        engine, 
+        _engine, 
         limit: int, 
         offset: int, 
         search_pattern: Optional[str] = None,
@@ -106,10 +110,11 @@ class OperationsQueries:
             """
             params = {'limit': limit, 'offset': offset}
         
-        return pd.read_sql(query, engine, params=params)
+        return pd.read_sql(query, _engine, params=params)
     
     @staticmethod
-    def get_operation_full(engine, operation_id: int) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    @st.cache_data(ttl=60)
+    def get_operation_full(_engine, operation_id: int) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Récupère toutes les données d'une opération (opération, flotteurs, résultats humains, stats)
         
@@ -122,16 +127,16 @@ class OperationsQueries:
         """
         # Utiliser des requêtes paramétrées pour éviter l'injection SQL
         query_op = "SELECT * FROM operations WHERE operation_id = %(op_id)s"
-        df_op = pd.read_sql(query_op, engine, params={'op_id': operation_id})
+        df_op = pd.read_sql(query_op, _engine, params={'op_id': operation_id})
         
         query_flotteurs = "SELECT * FROM flotteurs WHERE operation_id = %(op_id)s"
-        df_flotteurs = pd.read_sql(query_flotteurs, engine, params={'op_id': operation_id})
+        df_flotteurs = pd.read_sql(query_flotteurs, _engine, params={'op_id': operation_id})
         
         query_humain = "SELECT * FROM resultats_humain WHERE operation_id = %(op_id)s"
-        df_humain = pd.read_sql(query_humain, engine, params={'op_id': operation_id})
+        df_humain = pd.read_sql(query_humain, _engine, params={'op_id': operation_id})
         
         query_stats = "SELECT * FROM operations_stats WHERE operation_id = %(op_id)s"
-        df_stats = pd.read_sql(query_stats, engine, params={'op_id': operation_id})
+        df_stats = pd.read_sql(query_stats, _engine, params={'op_id': operation_id})
         
         # Enregistrer l'action dans l'audit
         if not df_op.empty:
@@ -146,27 +151,29 @@ class OperationsQueries:
         return df_op, df_flotteurs, df_humain, df_stats
     
     @staticmethod
-    def get_next_operation_id(engine) -> int:
+    @st.cache_data(ttl=30)
+    def get_next_operation_id(_engine) -> int:
         """
         Récupère le prochain ID d'opération disponible
         
         Args:
-            engine: Connexion SQLAlchemy
+            _engine: Connexion SQLAlchemy
             
         Returns:
             Prochain ID disponible
         """
         query = "SELECT COALESCE(MAX(operation_id), 0) + 1 as next_id FROM operations"
-        result = pd.read_sql(query, engine)
+        result = pd.read_sql(query, _engine)
         return int(result['next_id'].iloc[0])
     
     @staticmethod
-    def get_operation_counts(engine, operation_id: int) -> Dict[str, int]:
+    @st.cache_data(ttl=60)
+    def get_operation_counts(_engine, operation_id: int) -> Dict[str, int]:
         """
         Compte les données liées à une opération
         
         Args:
-            engine: Connexion SQLAlchemy
+            _engine: Connexion SQLAlchemy
             operation_id: ID de l'opération
             
         Returns:
@@ -175,12 +182,12 @@ class OperationsQueries:
         counts = {}
         
         query_flot = "SELECT COUNT(*) as nb FROM flotteurs WHERE operation_id = %(op_id)s"
-        counts['flotteurs'] = pd.read_sql(query_flot, engine, params={'op_id': operation_id})['nb'].iloc[0]
+        counts['flotteurs'] = pd.read_sql(query_flot, _engine, params={'op_id': operation_id})['nb'].iloc[0]
         
         query_hum = "SELECT COUNT(*) as nb FROM resultats_humain WHERE operation_id = %(op_id)s"
-        counts['humains'] = pd.read_sql(query_hum, engine, params={'op_id': operation_id})['nb'].iloc[0]
+        counts['humains'] = pd.read_sql(query_hum, _engine, params={'op_id': operation_id})['nb'].iloc[0]
         
         query_stats = "SELECT COUNT(*) as nb FROM operations_stats WHERE operation_id = %(op_id)s"
-        counts['stats'] = pd.read_sql(query_stats, engine, params={'op_id': operation_id})['nb'].iloc[0]
+        counts['stats'] = pd.read_sql(query_stats, _engine, params={'op_id': operation_id})['nb'].iloc[0]
         
         return counts
