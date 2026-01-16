@@ -99,10 +99,10 @@ def test_clean_operations_cleans_strings(raw_operations):
 
 
 def test_clean_operations_removes_invalid_sitrep(raw_operations):
-    """Vérifie que les lignes avec numero_sitrep = 0 sont supprimées"""
+    """Vérifie que numero_sitrep = 0 est remplacé par None"""
     result = clean_operations(raw_operations)
-    # La première ligne avec sitrep=0 devrait être supprimée
-    assert len(result) < len(raw_operations), "Les lignes avec sitrep=0 devraient être supprimées"
+    # La première ligne avec sitrep=0 devrait être remplacée par None
+    assert result["numero_sitrep"].iloc[0] is None or pd.isna(result["numero_sitrep"].iloc[0]), "numero_sitrep=0 devrait être remplacé par None"
 
 
 # ==============================================================================
