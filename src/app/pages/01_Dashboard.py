@@ -147,29 +147,29 @@ try:
     colA, colB, colC = st.columns(3)
 
     with colA:
-        if st.button("📅 Date & saisonnalité", use_container_width=True):
+        if st.button("📅 Date & saisonnalité", width="stretch"):
             st.session_state.action = "date"
             st.rerun()
 
-        if st.button("🚨 Alerte (déclencheurs)", use_container_width=True):
+        if st.button("🚨 Alerte (déclencheurs)", width="stretch"):
             st.session_state.action = "alerte"
             st.rerun()
 
     with colB:
-        if st.button("🗺️ Zone géographique", use_container_width=True):
+        if st.button("🗺️ Zone géographique", width="stretch"):
             st.session_state.action = "zone"
             st.rerun()
 
-        if st.button("🌦️ Météo & conditions", use_container_width=True):
+        if st.button("🌦️ Météo & conditions", width="stretch"):
             st.session_state.action = "meteo"
             st.rerun()
 
     with colC:
-        if st.button("🚤 Flotteurs (matériel)", use_container_width=True):
+        if st.button("🚤 Flotteurs (matériel)", width="stretch"):
             st.session_state.action = "flotteurs"
             st.rerun()
 
-        if st.button("👤 Résultats humains", use_container_width=True):
+        if st.button("👤 Résultats humains", width="stretch"):
             st.session_state.action = "resultats"
             st.rerun()
 

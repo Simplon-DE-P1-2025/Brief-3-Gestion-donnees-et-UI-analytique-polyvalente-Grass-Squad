@@ -287,7 +287,7 @@ def create_operation():
         
         st.divider()
         
-        submitted = st.form_submit_button("✅ Créer l'opération", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("✅ Créer l'opération", type="primary", width="stretch")
         
         if submitted:
             if not cross:

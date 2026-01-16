@@ -63,7 +63,7 @@ def render(engine):
                     ],
                 )
             )
-            st.altair_chart(chart_wind, use_container_width=True)
+            st.altair_chart(chart_wind, width="stretch")
 
     with col_sea:
         st.markdown("#### 🌊 Mer")
@@ -84,7 +84,7 @@ def render(engine):
                     ],
                 )
             )
-            st.altair_chart(chart_sea, use_container_width=True)
+            st.altair_chart(chart_sea, width="stretch")
 
     st.divider()
 
@@ -120,7 +120,7 @@ def render(engine):
                 ],
             )
         )
-        st.altair_chart(chart_grav, use_container_width=True)
+        st.altair_chart(chart_grav, width="stretch")
 
         top = df_grav.sort_values("personnes_impliquees", ascending=False).iloc[0]
         total = df_grav["personnes_impliquees"].sum()
@@ -167,7 +167,7 @@ def render(engine):
                 ],
             )
         )
-        st.altair_chart(pie3, use_container_width=True)
+        st.altair_chart(pie3, width="stretch")
 
     st.divider()
 
@@ -201,7 +201,7 @@ def render(engine):
                 ],
             )
         )
-        st.altair_chart(chart_maree, use_container_width=True)
+        st.altair_chart(chart_maree, width="stretch")
 
         # Lecture simple automatique
         top_m = df_maree.iloc[0]

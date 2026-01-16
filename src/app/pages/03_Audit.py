@@ -56,7 +56,7 @@ with col_s2:
 with col_s3:
     st.write("")
     st.write("")
-    if st.button("🔄 Rafraîchir", use_container_width=True, type="primary"):
+    if st.button("🔄 Rafraîchir", width="stretch", type="primary"):
         st.rerun()
 
 st.divider()
@@ -78,6 +78,12 @@ try:
     
     if logs:
         df_audit = pd.DataFrame(logs)
+        
+        # Convertir les colonnes JSONB en string pour l'affichage
+        if 'old_values' in df_audit.columns:
+            df_audit['old_values'] = df_audit['old_values'].apply(lambda x: json.dumps(x, ensure_ascii=False) if x else None)
+        if 'new_values' in df_audit.columns:
+            df_audit['new_values'] = df_audit['new_values'].apply(lambda x: json.dumps(x, ensure_ascii=False) if x else None)
         
         # Appliquer les filtres de recherche additionnels
         if search_user:
@@ -138,7 +144,7 @@ try:
         # Affichage de la table
         st.dataframe(
             df_display[columns_order],
-            use_container_width=True,
+            width="stretch",
             height=600,
             column_config={
                 "id": st.column_config.NumberColumn("ID", width="small", help="ID unique de l'enregistrement"),
@@ -174,7 +180,7 @@ try:
                 data=csv,
                 file_name=f"audit_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
         
         with col_d3:
@@ -184,7 +190,7 @@ try:
                 data=json_data,
                 file_name=f"audit_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json",
-                use_container_width=True
+                width="stretch"
             )
         
         # Affichage détaillé d'un enregistrement
@@ -251,7 +257,7 @@ try:
                                     })
                                 
                                 df_comparison = pd.DataFrame(comparison_data)
-                                st.dataframe(df_comparison, use_container_width=True, hide_index=True)
+                                st.dataframe(df_comparison, width="stretch", hide_index=True)
                             else:
                                 st.info("✅ Aucun changement détecté entre les anciennes et nouvelles valeurs")
                         

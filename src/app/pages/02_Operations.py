@@ -64,16 +64,16 @@ def view_operation(operation_id):
     # Boutons de navigation alignés
     col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([1.5, 4, 1.5, 1.5])
     with col_btn1:
-        if st.button("⬅️ Retour à la liste", use_container_width=True):
+        if st.button("⬅️ Retour à la liste", width="stretch"):
             st.session_state.action = 'list'
             st.rerun()
     with col_btn3:
-        if st.button("✏️ Modifier", type="primary", key="btn_modify", use_container_width=True):
+        if st.button("✏️ Modifier", type="primary", key="btn_modify", width="stretch"):
             st.session_state.action = 'edit'
             st.session_state.selected_operation_id = operation_id
             st.rerun()
     with col_btn4:
-        if st.button("🗑️ Supprimer", type="secondary", key="btn_delete", use_container_width=True):
+        if st.button("🗑️ Supprimer", type="secondary", key="btn_delete", width="stretch"):
             st.session_state.show_delete_confirmation = True
     
     # Modal de confirmation de suppression
@@ -142,7 +142,7 @@ def view_operation(operation_id):
             # Transposer pour affichage vertical
             df_transpose = df_op.T
             df_transpose.columns = ['Valeur']
-            st.dataframe(df_transpose, use_container_width=True)
+            st.dataframe(df_transpose, width="stretch")
             
             # Afficher l'historique d'audit pour cette opération
             st.markdown("---")
@@ -170,7 +170,7 @@ def view_operation(operation_id):
                     })
                 
                 df_audit = pd.DataFrame(audit_data)
-                st.dataframe(df_audit, use_container_width=True, hide_index=True)
+                st.dataframe(df_audit, width="stretch", hide_index=True)
                 st.info(f"📊 {len(audit_logs)} action(s) enregistrée(s) dans l'audit")
             else:
                 st.info("Aucun historique d'audit disponible pour cette opération")
@@ -179,7 +179,7 @@ def view_operation(operation_id):
             df_flotteurs = get_flotteurs_by_operation(operation_id)
             
             if len(df_flotteurs) > 0:
-                st.dataframe(df_flotteurs, use_container_width=True, hide_index=True)
+                st.dataframe(df_flotteurs, width="stretch", hide_index=True)
                 st.success(f"✅ {len(df_flotteurs)} flotteur(s) trouvé(s)")
             else:
                 st.info("Aucun flotteur enregistré pour cette opération")
@@ -188,7 +188,7 @@ def view_operation(operation_id):
             df_humain = get_resultats_humain_by_operation(operation_id)
             
             if len(df_humain) > 0:
-                st.dataframe(df_humain, use_container_width=True, hide_index=True)
+                st.dataframe(df_humain, width="stretch", hide_index=True)
                 st.success(f"✅ {len(df_humain)} résultat(s) trouvé(s)")
             else:
                 st.info("Aucun résultat humain enregistré pour cette opération")
@@ -203,7 +203,7 @@ def view_operation(operation_id):
                 col_s3.metric("💔 Décès", int(df_stats['nombre_personnes_tous_deces'].iloc[0]) if pd.notna(df_stats['nombre_personnes_tous_deces'].iloc[0]) else 0)
                 col_s4.metric("🚑 Blessés", int(df_stats['nombre_personnes_blessees'].iloc[0]) if pd.notna(df_stats['nombre_personnes_blessees'].iloc[0]) else 0)
                 
-                st.dataframe(df_stats, use_container_width=True, hide_index=True)
+                st.dataframe(df_stats, width="stretch", hide_index=True)
             else:
                 st.info("Aucune statistique enregistrée pour cette opération")
     

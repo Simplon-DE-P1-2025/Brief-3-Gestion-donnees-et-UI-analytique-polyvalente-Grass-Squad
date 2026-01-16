@@ -46,14 +46,14 @@ def render_pagination(
     # Bouton Première page
     with pagination_cols[0]:
         if page_number > 1:
-            if st.button("⏮️", use_container_width=True, help="Première page", key="first_page"):
+            if st.button("⏮️", width="stretch", help="Première page", key="first_page"):
                 st.session_state.page_number = 1
                 st.rerun()
     
     # Bouton Précédent
     with pagination_cols[1]:
         if page_number > 1:
-            if st.button("◀️", use_container_width=True, help="Page précédente", key="prev_page"):
+            if st.button("◀️", width="stretch", help="Page précédente", key="prev_page"):
                 st.session_state.page_number = page_number - 1
                 st.rerun()
     
@@ -64,14 +64,14 @@ def render_pagination(
     # Bouton Suivant
     with pagination_cols[3]:
         if page_number < total_pages:
-            if st.button("▶️", use_container_width=True, help="Page suivante", key="next_page"):
+            if st.button("▶️", width="stretch", help="Page suivante", key="next_page"):
                 st.session_state.page_number = page_number + 1
                 st.rerun()
     
     # Bouton Dernière page
     with pagination_cols[4]:
         if page_number < total_pages:
-            if st.button("⏭️", use_container_width=True, help="Dernière page", key="last_page"):
+            if st.button("⏭️", width="stretch", help="Dernière page", key="last_page"):
                 st.session_state.page_number = total_pages
                 st.rerun()
 
@@ -122,14 +122,14 @@ def _render_page_numbers(page_number: int, total_pages: int, max_visible: int = 
                     str(page),
                     key=f"page_{page}_active",
                     disabled=True,
-                    use_container_width=True,
+                    width="stretch",
                     type="primary"
                 )
             else:
                 if st.button(
                     str(page),
                     key=f"page_{page}",
-                    use_container_width=True
+                    width="stretch"
                 ):
                     st.session_state.page_number = page
                     st.rerun()

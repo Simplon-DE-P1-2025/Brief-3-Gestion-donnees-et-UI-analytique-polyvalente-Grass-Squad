@@ -59,7 +59,7 @@ def edit_operation(operation_id):
             
             edited_op = st.data_editor(
                 df_op, 
-                use_container_width=True, 
+                width="stretch", 
                 num_rows="fixed", 
                 key="edit_op",
                 column_config={
@@ -103,7 +103,7 @@ def edit_operation(operation_id):
                 
                 edited_flotteurs = st.data_editor(
                     df_flotteurs, 
-                    use_container_width=True, 
+                    width="stretch", 
                     num_rows="dynamic",
                     key="edit_flotteurs",
                     column_config={
@@ -257,7 +257,7 @@ def edit_operation(operation_id):
                 
                 edited_humain = st.data_editor(
                     df_humain, 
-                    use_container_width=True, 
+                    width="stretch", 
                     num_rows="dynamic",
                     key="edit_humain",
                     column_config={
@@ -380,7 +380,7 @@ def edit_operation(operation_id):
                 
                 edited_stats = st.data_editor(
                     df_stats, 
-                    use_container_width=True, 
+                    width="stretch", 
                     num_rows="fixed",
                     key="edit_stats",
                     column_config={

@@ -88,7 +88,7 @@ def render(engine):
             st.info("Pas de données disponibles sur la période.")
     with colB:
         if not df_day.empty:
-            st.dataframe(df_day.drop(columns=["ordre"]), use_container_width=True)
+            st.dataframe(df_day.drop(columns=["ordre"]), width="stretch")
 
     # Analyse automatique (basée sur les chiffres affichés)
     if not df_day.empty:
@@ -130,7 +130,7 @@ def render(engine):
         with colA:
             st.bar_chart(df_vac.set_index("periode")[["operations","personnes_impliquees"]])
         with colB:
-            st.dataframe(df_vac, use_container_width=True)
+            st.dataframe(df_vac, width="stretch")
 
         # Analyse auto vacances
         vac = df_vac.set_index("periode")
@@ -176,7 +176,7 @@ def render(engine):
         with colA:
             st.bar_chart(df_ete.set_index("periode")[["operations","personnes_impliquees"]])
         with colB:
-            st.dataframe(df_ete, use_container_width=True)
+            st.dataframe(df_ete, width="stretch")
 
         # Analyse auto été
         ete = df_ete.set_index("periode")
@@ -210,7 +210,7 @@ def render(engine):
         df_cross["vacances"] = df_cross["est_vacances"].map({True:"Vacances", False:"Hors vacances"})
         df_cross["ete"] = df_cross["est_ete"].map({True:"Été", False:"Hors été"})
         df_cross = df_cross[["vacances","ete","operations","personnes_impliquees","impliquees_par_operation"]]
-        st.dataframe(df_cross, use_container_width=True)
+        st.dataframe(df_cross, width="stretch")
 
         # Petite lecture auto (ligne la plus chargée en ops)
         worst = df_cross.sort_values("operations", ascending=False).iloc[0]

@@ -115,12 +115,12 @@ def _render_controls():
     col_btn1, col_btn2, col_search = st.columns([1, 1, 2])
     
     with col_btn1:
-        if st.button("➕ Créer une nouvelle opération", type="primary", use_container_width=True):
+        if st.button("➕ Créer une nouvelle opération", type="primary", width="stretch"):
             st.session_state.action = 'create'
             st.rerun()
     
     with col_btn2:
-        if st.button("🔄 Rafraîchir", use_container_width=True, help="Actualise la page et réinitialise tous les filtres et recherches"):
+        if st.button("🔄 Rafraîchir", width="stretch", help="Actualise la page et réinitialise tous les filtres et recherches"):
             # Réinitialiser tous les filtres et recherches
             clear_search()
             st.session_state.search_operation_id = ""
