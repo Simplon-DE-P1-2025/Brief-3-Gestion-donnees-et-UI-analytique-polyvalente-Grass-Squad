@@ -359,7 +359,6 @@ Page **technique** pour explorer la structure de la base de données.
 
 ## 🧪 Tests unitaires
 
-
 Lancez la suite complète :
 ```bash
 pytest tests/ -v --cov=src --cov-report=html
