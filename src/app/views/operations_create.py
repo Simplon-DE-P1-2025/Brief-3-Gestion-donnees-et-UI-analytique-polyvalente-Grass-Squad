@@ -10,6 +10,7 @@ from src.crud.operations_crud import insert_operation
 from src.crud.flotteurs_crud import insert_flotteur
 from src.crud.resultat_humain_crud import insert_resultat_humain
 from src.crud.operations_stats_crud import insert_operations_stats
+from src.crud.audit_crud import log_action
 from src.app.utils.queries import OperationsQueries
 from src.app.utils.data_loader import get_reference_list_cached
 
@@ -286,7 +287,7 @@ def create_operation():
         
         st.divider()
         
-        submitted = st.form_submit_button("✅ Créer l'opération", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("✅ Créer l'opération", type="primary", width="stretch")
         
         if submitted:
             if not cross:
@@ -330,6 +331,21 @@ def create_operation():
                         operation_id = insert_operation(operation_data)
                         
                         if operation_id:
+                            # Enregistrer dans l'audit
+                            try:
+                                # Convertir les dates en string pour JSON
+                                audit_data = {k: str(v) if hasattr(v, 'isoformat') else v for k, v in operation_data.items()}
+                                log_action(
+                                    table='operations',
+                                    action='INSERT',
+                                    record_id=str(operation_id),
+                                    user_name=st.session_state.get('user_name', 'system'),
+                                    new_values=audit_data,
+                                    details=f"Création opération - CROSS: {cross}"
+                                )
+                            except Exception as e:
+                                st.warning(f"⚠️ Audit non enregistré: {e}")
+                            
                             st.success(f"✅ Opération créée ! ID: {operation_id}")
                             
                             if add_flotteur:

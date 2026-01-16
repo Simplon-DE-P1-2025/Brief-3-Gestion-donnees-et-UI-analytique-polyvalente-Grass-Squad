@@ -99,7 +99,7 @@ def show_categories_list():
             st.session_state.confirm_init_ref = False
         
         if not st.session_state.confirm_init_ref:
-            if st.button("🔄 Initialiser les listes de référence", type="secondary", use_container_width=True):
+            if st.button("🔄 Initialiser les listes de référence", type="secondary", width="stretch"):
                 st.session_state.confirm_init_ref = True
                 st.rerun()
         else:
@@ -107,7 +107,7 @@ def show_categories_list():
             col_yes, col_no = st.columns(2)
             
             with col_yes:
-                if st.button("✅ Confirmer l'initialisation", type="primary", use_container_width=True):
+                if st.button("✅ Confirmer l'initialisation", type="primary", width="stretch"):
                     with st.spinner("Initialisation en cours..."):
                         try:
                             success = init_reference_lists()
@@ -124,7 +124,7 @@ def show_categories_list():
                             st.session_state.confirm_init_ref = False
             
             with col_no:
-                if st.button("❌ Annuler", use_container_width=True):
+                if st.button("❌ Annuler", width="stretch"):
                     st.session_state.confirm_init_ref = False
                     st.rerun()
     
@@ -157,7 +157,7 @@ def show_categories_list():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button(f"✏️ Gérer", key=f"manage_{category}", use_container_width=True):
+                if st.button(f"✏️ Gérer", key=f"manage_{category}", width="stretch"):
                     st.session_state.admin_action = 'manage_category'
                     st.session_state.selected_category = category
                     st.rerun()
@@ -184,7 +184,7 @@ def manage_category():
     # Bouton pour ajouter une nouvelle valeur
     col1, col2 = st.columns([1, 4])
     with col1:
-        if st.button("➕ Ajouter une valeur", type="primary", use_container_width=True):
+        if st.button("➕ Ajouter une valeur", type="primary", width="stretch"):
             st.session_state.admin_action = 'add_value'
             st.rerun()
     
@@ -215,7 +215,7 @@ def manage_category():
         df = pd.DataFrame(df_data)
         
         # Afficher le tableau
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width="stretch", hide_index=True)
         
         # Actions sur les valeurs
         st.markdown("---")
@@ -235,13 +235,13 @@ def manage_category():
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                if st.button("✏️ Modifier", key=f"edit_{selected_id}", use_container_width=True):
+                if st.button("✏️ Modifier", key=f"edit_{selected_id}", width="stretch"):
                     st.session_state.admin_action = 'edit_value'
                     st.session_state.selected_ref_id = selected_id
                     st.rerun()
             
             with col2:
-                if st.button("🔄 Activer/Désactiver", key=f"toggle_{selected_id}", use_container_width=True):
+                if st.button("🔄 Activer/Désactiver", key=f"toggle_{selected_id}", width="stretch"):
                     if toggle_reference_list_status(selected_id):
                         get_categories_with_counts.clear()
                         st.success("Statut modifié avec succès!")
@@ -250,7 +250,7 @@ def manage_category():
                         st.error("Erreur lors du changement de statut")
             
             with col3:
-                if st.button("🗑️ Supprimer", key=f"delete_{selected_id}", type="secondary", use_container_width=True):
+                if st.button("🗑️ Supprimer", key=f"delete_{selected_id}", type="secondary", width="stretch"):
                     if delete_reference_list_value(selected_id):
                         get_categories_with_counts.clear()
                         st.success(f"Valeur '{selected_value}' supprimée!")
@@ -286,7 +286,7 @@ def add_value_form():
         display_order = st.number_input("Ordre d'affichage", min_value=0, value=max_order + 1, 
                                         help="Ordre dans lequel cette valeur apparaîtra dans les listes")
         
-        submitted = st.form_submit_button("💾 Enregistrer", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("💾 Enregistrer", type="primary", width="stretch")
         
         if submitted:
             if not value:
@@ -332,7 +332,7 @@ def edit_value_form():
         display_order = st.number_input("Ordre d'affichage", min_value=0, value=current_order)
         is_active = st.checkbox("Actif", value=current_active)
         
-        submitted = st.form_submit_button("💾 Enregistrer les modifications", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("💾 Enregistrer les modifications", type="primary", width="stretch")
         
         if submitted:
             if not value:
@@ -399,7 +399,7 @@ def manage_audit_table():
         if actions_count:
             st.markdown("**Répartition par type d'action:**")
             df_actions = pd.DataFrame(actions_count, columns=['Action', 'Nombre'])
-            st.dataframe(df_actions, use_container_width=True, hide_index=True)
+            st.dataframe(df_actions, width="stretch", hide_index=True)
         
         st.divider()
         
@@ -420,7 +420,7 @@ def manage_audit_table():
         
         with col_btn1:
             if not st.session_state.confirm_clear_audit:
-                if st.button("🗑️ Vider la table", type="secondary", use_container_width=True):
+                if st.button("🗑️ Vider la table", type="secondary", width="stretch"):
                     st.session_state.confirm_clear_audit = True
                     st.rerun()
             else:
@@ -428,7 +428,7 @@ def manage_audit_table():
                 col_yes, col_no = st.columns(2)
                 
                 with col_yes:
-                    if st.button("✅ Oui", type="primary", use_container_width=True):
+                    if st.button("✅ Oui", type="primary", width="stretch"):
                         try:
                             conn = get_db_connection()
                             cur = conn.cursor()
@@ -444,7 +444,7 @@ def manage_audit_table():
                             st.session_state.confirm_clear_audit = False
                 
                 with col_no:
-                    if st.button("❌ Non", use_container_width=True):
+                    if st.button("❌ Non", width="stretch"):
                         st.session_state.confirm_clear_audit = False
                         st.rerun()
         
@@ -468,7 +468,7 @@ def manage_audit_table():
         
         with col_btn3:
             if not st.session_state.confirm_reset_audit:
-                if st.button("🔄 Réinitialiser", type="secondary", use_container_width=True):
+                if st.button("🔄 Réinitialiser", type="secondary", width="stretch"):
                     st.session_state.confirm_reset_audit = True
                     st.rerun()
             else:
@@ -476,7 +476,7 @@ def manage_audit_table():
                 col_yes2, col_no2 = st.columns(2)
                 
                 with col_yes2:
-                    if st.button("✅ Confirmer", type="primary", use_container_width=True, key="confirm_reset"):
+                    if st.button("✅ Confirmer", type="primary", width="stretch", key="confirm_reset"):
                         try:
                             conn = get_db_connection()
                             cur = conn.cursor()
@@ -517,7 +517,7 @@ def manage_audit_table():
                             st.session_state.confirm_reset_audit = False
                 
                 with col_no2:
-                    if st.button("❌ Annuler", use_container_width=True, key="cancel_reset"):
+                    if st.button("❌ Annuler", width="stretch", key="cancel_reset"):
                         st.session_state.confirm_reset_audit = False
                         st.rerun()
     

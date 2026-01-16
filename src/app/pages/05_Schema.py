@@ -238,7 +238,7 @@ if selected_table:
     
     df_cols = pd.DataFrame(columns_data)
     
-    st.dataframe(df_cols, use_container_width=True, hide_index=True)
+    st.dataframe(df_cols, width="stretch", hide_index=True)
     
     # Statistiques de la table
     col1, col2, col3 = st.columns(3)
@@ -284,7 +284,7 @@ try:
             'Lignes': list(row_counts.values())
         })
         
-        st.dataframe(df_stats, use_container_width=True, hide_index=True)
+        st.dataframe(df_stats, width="stretch", hide_index=True)
     
     with col2:
         st.markdown("**Taille des tables:**")
@@ -303,7 +303,7 @@ try:
             'Taille': list(sizes.values())
         })
         
-        st.dataframe(df_sizes, use_container_width=True, hide_index=True)
+        st.dataframe(df_sizes, width="stretch", hide_index=True)
     
     cur.close()
     conn.close()

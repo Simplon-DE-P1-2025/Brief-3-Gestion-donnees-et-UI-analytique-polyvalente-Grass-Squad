@@ -88,23 +88,23 @@ st.markdown("### 🔗 Accès Rapide")
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    if st.button("📊 Dashboard", use_container_width=True, type="secondary"):
+    if st.button("📊 Dashboard", width="stretch", type="secondary"):
         st.switch_page("pages/01_Dashboard.py")
 
 with col2:
-    if st.button("🚢 Opérations", use_container_width=True, type="secondary"):
+    if st.button("🚢 Opérations", width="stretch", type="secondary"):
         st.switch_page("pages/02_Operations.py")
 
 with col3:
-    if st.button("🛡️ Audit", use_container_width=True, type="secondary"):
+    if st.button("🛡️ Audit", width="stretch", type="secondary"):
         st.switch_page("pages/03_Audit.py")
 
 with col4:
-    if st.button("⚙️ Admin", use_container_width=True, type="secondary"):
+    if st.button("⚙️ Admin", width="stretch", type="secondary"):
         st.switch_page("pages/04_Admin.py")
 
 with col5:
-    if st.button("📐 Schéma", use_container_width=True, type="secondary"):
+    if st.button("📐 Schéma", width="stretch", type="secondary"):
         st.switch_page("pages/05_Schema.py")
 st.divider()
 

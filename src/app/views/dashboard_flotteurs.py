@@ -109,9 +109,9 @@ def render(engine):
                     ],
                 )
             )
-            st.altair_chart(chart_ops, use_container_width=True)
+            st.altair_chart(chart_ops, width="stretch")
         with right:
-            st.dataframe(df_ops_cat, use_container_width=True)
+            st.dataframe(df_ops_cat, width="stretch")
 
         top = df_ops_cat.iloc[0]
         st.markdown("### 🧠 Analyse")
@@ -150,9 +150,9 @@ def render(engine):
                     ],
                 )
             )
-            st.altair_chart(chart_charge, use_container_width=True)
+            st.altair_chart(chart_charge, width="stretch")
         with right:
-            st.dataframe(df_charge, use_container_width=True)
+            st.dataframe(df_charge, width="stretch")
 
         top = df_charge.iloc[0]
         st.markdown("### 🧠 Analyse")
@@ -193,9 +193,9 @@ def render(engine):
                     ],
                 )
             )
-            st.altair_chart(chart_fatal, use_container_width=True)
+            st.altair_chart(chart_fatal, width="stretch")
         with right:
-            st.dataframe(df_fatal, use_container_width=True)
+            st.dataframe(df_fatal, width="stretch")
 
         top = df_fatal.iloc[0]
         st.markdown("### 🧠 Analyse")
@@ -249,9 +249,9 @@ def render(engine):
                             ],
                         )
                     )
-                    st.altair_chart(chart_out, use_container_width=True)
+                    st.altair_chart(chart_out, width="stretch")
                 with right:
-                    st.dataframe(df_out.sort_values(["categorie_flotteur", "nb"], ascending=[True, False]), use_container_width=True)
+                    st.dataframe(df_out.sort_values(["categorie_flotteur", "nb"], ascending=[True, False]), width="stretch")
 
                 st.markdown("### 🧠 Analyse")
                 st.markdown(
@@ -284,7 +284,7 @@ def render(engine):
                 ],
             )
         )
-        st.altair_chart(chart_flag, use_container_width=True)
+        st.altair_chart(chart_flag, width="stretch")
 
     st.divider()
 

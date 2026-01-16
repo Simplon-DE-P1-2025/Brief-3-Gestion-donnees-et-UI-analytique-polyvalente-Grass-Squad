@@ -26,7 +26,7 @@ def delete_operation(operation_id):
         df_op = pd.read_sql(query_op, engine)
         
         st.info("📄 **Aperçu de l'opération à supprimer :**")
-        st.dataframe(df_op, use_container_width=True, hide_index=True)
+        st.dataframe(df_op, width="stretch", hide_index=True)
         
         # Compter les données liées
         query_flot = f"SELECT COUNT(*) as nb FROM flotteurs WHERE operation_id = {operation_id}"

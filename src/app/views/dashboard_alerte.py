@@ -70,7 +70,7 @@ def render(engine):
         with left:
             st.bar_chart(df_events.set_index("evenement")[["operations", "personnes_impliquees"]])
         with right:
-            st.dataframe(df_events, use_container_width=True)
+            st.dataframe(df_events, width="stretch")
     
     st.divider()
 
@@ -85,7 +85,7 @@ def render(engine):
         st.info("Aucune catégorie d'événement disponible.")
     else:
         st.bar_chart(df_cat.set_index("categorie")["operations"])
-        st.dataframe(df_cat, use_container_width=True)
+        st.dataframe(df_cat, width="stretch")
     
     st.divider()
 
@@ -101,7 +101,7 @@ def render(engine):
         st.info("Aucune donnée sur les moyens d'alerte.")
     else:
         st.bar_chart(df_moyen.set_index("moyen_alerte")["operations"])
-        st.dataframe(df_moyen, use_container_width=True)
+        st.dataframe(df_moyen, width="stretch")
 
     st.markdown("### ✅ Conclusion")
     st.markdown(

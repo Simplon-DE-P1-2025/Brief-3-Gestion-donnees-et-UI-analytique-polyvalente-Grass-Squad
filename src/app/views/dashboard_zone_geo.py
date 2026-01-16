@@ -98,7 +98,7 @@ def render(engine):
           st.bar_chart(df_top.set_index("cross")[["operations", "impliquees"]])
   with right:
       if not df_top.empty:
-          st.dataframe(df_top, use_container_width=True)
+          st.dataframe(df_top, width="stretch")
 
   # ------------------------------------------------------
   # Analyse automatique (basée sur df_top)

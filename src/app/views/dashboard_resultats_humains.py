@@ -108,7 +108,7 @@ def render(engine):
                 ],
             )
         )
-        st.altair_chart(chart_funnel, use_container_width=True)
+        st.altair_chart(chart_funnel, width="stretch")
 
         st.divider()
 
@@ -142,9 +142,9 @@ def render(engine):
                         ],
                     )
                 )
-                st.altair_chart(chart_vol, use_container_width=True)
+                st.altair_chart(chart_vol, width="stretch")
             with right:
-                st.dataframe(df_top, use_container_width=True)
+                st.dataframe(df_top, width="stretch")
 
             top = df_prof.iloc[0]
             st.markdown("### 🧠 Analyse — Profils les plus touchés (volume)")
@@ -176,7 +176,7 @@ def render(engine):
                         ],
                     )
                 )
-                st.altair_chart(chart_grav, use_container_width=True)
+                st.altair_chart(chart_grav, width="stretch")
 
                 top_g = df_grav.iloc[0]
                 st.markdown("### 🧠 Analyse — Profils les plus à risque")
@@ -206,7 +206,7 @@ def render(engine):
                 )
                 .properties(height=350)
             )
-            st.altair_chart(scatter, use_container_width=True)
+            st.altair_chart(scatter, width="stretch")
 
             st.markdown("### 🧠 Analyse — Volume vs gravité")
             st.markdown(
@@ -241,9 +241,9 @@ def render(engine):
                         ],
                     )
                 )
-                st.altair_chart(chart_out, use_container_width=True)
+                st.altair_chart(chart_out, width="stretch")
             with right:
-                st.dataframe(df_out.head(25), use_container_width=True)
+                st.dataframe(df_out.head(25), width="stretch")
 
             top_issue = df_out.iloc[0]
             st.markdown("### 🧠 Analyse — Issue dominante")
@@ -287,7 +287,7 @@ def render(engine):
                         )
                         .properties(height=350)
                     )
-                    st.altair_chart(chart_stack, use_container_width=True)
+                    st.altair_chart(chart_stack, width="stretch")
 
                     st.markdown("### 🧠 Analyse — Issues par profil")
                     st.markdown(
@@ -318,7 +318,7 @@ def render(engine):
                     )
                     .properties(height=450)
                 )
-                st.altair_chart(heat, use_container_width=True)
+                st.altair_chart(heat, width="stretch")
             else:
                 st.info("Heatmap non disponible : pas assez de données profil × issue.")
 

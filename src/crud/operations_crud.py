@@ -75,14 +75,22 @@ def insert_operation(data: dict):
     conn.close()
     
     # Enregistrer l'action dans l'audit avec la requête SQL
-    log_action(
-        table='operations',
-        action='INSERT',
-        record_id=operation_id,
-        new_values=full_data,
-        details=f"Nouvelle opération créée - CROSS: {full_data.get('cross')}",
-        sql_query=sql_for_audit
-    )
+    # Convertir les objets datetime en string pour JSON
+    audit_data = {k: str(v) if hasattr(v, 'isoformat') else v for k, v in full_data.items()}
+    
+    try:
+        log_action(
+            table='operations',
+            action='INSERT',
+            record_id=str(operation_id),
+            new_values=audit_data,
+            details=f"Nouvelle opération créée - CROSS: {full_data.get('cross')}",
+            sql_query=sql_for_audit[:500]  # Limiter la longueur
+        )
+    except Exception as e:
+        # Ne pas bloquer l'insertion si l'audit échoue
+        import logging
+        logging.error(f"Erreur audit INSERT operation {operation_id}: {e}")
     
     return operation_id
 
@@ -161,15 +169,23 @@ def update_operation(operation_id: int, data: dict):
     
     # Enregistrer l'action dans l'audit seulement si des changements existent
     if changed_old_values:
-        log_action(
-            table='operations',
-            action='UPDATE',
-            record_id=operation_id,
-            old_values=changed_old_values,
-            new_values=changed_new_values,
-            details=f"Modification de l'opération {operation_id} - {len(changed_old_values)} champ(s) modifié(s)",
-            sql_query=sql_for_audit
-        )
+        # Convertir les objets datetime en string
+        audit_old = {k: str(v) if hasattr(v, 'isoformat') else v for k, v in changed_old_values.items()}
+        audit_new = {k: str(v) if hasattr(v, 'isoformat') else v for k, v in changed_new_values.items()}
+        
+        try:
+            log_action(
+                table='operations',
+                action='UPDATE',
+                record_id=str(operation_id),
+                old_values=audit_old,
+                new_values=audit_new,
+                details=f"Modification de l'opération {operation_id} - {len(changed_old_values)} champ(s) modifié(s)",
+                sql_query=sql_for_audit[:500]  # Limiter la longueur
+            )
+        except Exception as e:
+            import logging
+            logging.error(f"Erreur audit UPDATE operation {operation_id}: {e}")
     
     return True
 
@@ -196,13 +212,20 @@ def delete_operation(operation_id: int):
     conn.close()
     
     # Enregistrer l'action dans l'audit
-    log_action(
-        table='operations',
-        action='DELETE',
-        record_id=operation_id,
-        old_values=old_values,
-        details=f"Suppression de l'opération {operation_id} et toutes ses données associées",
-        sql_query=f"DELETE FROM operations WHERE operation_id = {operation_id}"
-    )
+    # Convertir les objets datetime en string
+    audit_old = {k: str(v) if hasattr(v, 'isoformat') else v for k, v in old_values.items()} if old_values else {}
+    
+    try:
+        log_action(
+            table='operations',
+            action='DELETE',
+            record_id=str(operation_id),
+            old_values=audit_old,
+            details=f"Suppression de l'opération {operation_id} et toutes ses données associées",
+            sql_query=f"DELETE FROM operations WHERE operation_id = {operation_id}"
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Erreur audit DELETE operation {operation_id}: {e}")
     
     return True

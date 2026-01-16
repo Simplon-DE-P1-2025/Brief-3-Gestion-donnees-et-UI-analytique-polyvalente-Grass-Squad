@@ -17,7 +17,7 @@ def log_action(table: str, action: str, record_id: str, user_name: str = 'system
         old_values: Anciennes valeurs (pour UPDATE et DELETE)
         new_values: Nouvelles valeurs (pour INSERT et UPDATE)
         details: Détails supplémentaires sur l'action
-        sql_query: Requête SQL exécutée (telle quelle)
+        sql_query: Requête SQL exécutée (optionnelle)
     """
     conn = None
     cur = None
