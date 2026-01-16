@@ -16,16 +16,14 @@ from src.analysis.date_analysis import (
 
 def render(engine):
     st.title("🗓️ Date — Saison, vacances et jours à risque")
-    st.caption("Objectif : comprendre d’où viennent les alertes, qui alerte, et l’impact humain associé.")
+    st.caption("Objectif : L’objectif est de savoir à quels moments de l’année et de la semaine les opérations sont les plus nombreuses, et si certaines périodes sont aussi plus graves en termes de personnes impliquées.")
 
     # Pas de filtres
     where_sql = "1=1"
     params = {}
 
 
-    if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_date"):
-        st.session_state.action = 'dashboard'
-        st.rerun()
+
     # --------------
     # ------------------------------------------------------
     # 0) Questions métier (novice-friendly)

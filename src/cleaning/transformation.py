@@ -6,6 +6,9 @@ pd.set_option('future.no_silent_downcasting', True)
 # -----------------------------
 
 def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df.copy()
+    
     df = df.copy()
     df.columns = (
         df.columns
@@ -21,6 +24,9 @@ def drop_empty_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df.dropna(how="all")
 
 def clean_strings(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df.copy()
+    
     df = df.copy()
     for col in df.select_dtypes(include="object").columns:
         # Vérifier que la colonne contient des strings avant d'appliquer .str
