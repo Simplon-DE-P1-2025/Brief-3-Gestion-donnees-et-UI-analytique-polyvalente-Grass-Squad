@@ -88,6 +88,18 @@ def view_operation(operation_id):
         with col_confirm1:
             if st.button("✅ Confirmer la suppression", type="primary", key="btn_confirm_delete"):
                 try:
+                    # Enregistrer dans l'audit avant suppression
+                    try:
+                        log_action(
+                            table='operations',
+                            action='DELETE',
+                            record_id=str(operation_id),
+                            user_name=st.session_state.get('user_name', 'system'),
+                            details=f"Suppression de l'opération {operation_id}"
+                        )
+                    except Exception as audit_error:
+                        st.warning(f"⚠️ Audit non enregistré: {audit_error}")
+                    
                     delete_operation(operation_id)
                     st.success(f"✅ Opération #{operation_id} supprimée avec succès!")
                     st.session_state.show_delete_confirmation = False

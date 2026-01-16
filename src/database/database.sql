@@ -249,6 +249,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     old_values JSONB,
     new_values JSONB,
     details TEXT,
+    sql_query TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
