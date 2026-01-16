@@ -29,6 +29,7 @@ def get_stats_totals():
         SUM(nombre_personnes_secourues) as total_secourus,
         SUM(nombre_personnes_tous_deces) as total_deces,
         SUM(nombre_personnes_impliquees) as total_impliques,
+        SUM(nombre_personnes_disparues) as total_disparus,
         COUNT(DISTINCT operation_id) as total_operations
     FROM operations_stats
     """
