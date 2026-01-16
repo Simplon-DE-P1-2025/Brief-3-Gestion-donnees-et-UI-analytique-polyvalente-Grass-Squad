@@ -135,10 +135,22 @@ try:
 
     st.subheader("🗺️ Carte des Opérations")
 
-    df_map = get_operations_map_data(engine, limit=1000)
+    # Filtre optionnel pour France métropolitaine
+    col_map1, col_map2 = st.columns([3, 1])
+    with col_map2:
+        france_metro_only = st.checkbox(
+            "France métro uniquement",
+            value=False,
+            help="Affiche uniquement les opérations en France métropolitaine (exclut les DOM-TOM)",
+            key="dashboard_france_metro_filter"
+        )
+
+    df_map = get_operations_map_data(engine, limit=1000, france_metro_only=france_metro_only)
 
     if not df_map.empty:
         st.map(df_map)
+        territory_info = "France métropolitaine" if france_metro_only else "tous territoires français"
+        st.caption(f"Carte : {len(df_map)} opérations affichées ({territory_info}). Les coordonnées invalides sont automatiquement exclues.")
     else:
         st.info("Aucune donnée GPS disponible pour la carte.")
 
