@@ -38,10 +38,6 @@ def render(engine):
     params["min_ops"] = min_ops
 
 
-    if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_flotteurs"):
-        st.session_state.action = 'dashboard'
-        st.rerun()
-    # --------------
 
     
     # ----------------------------------
