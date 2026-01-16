@@ -34,7 +34,7 @@ def get_global_kpis(_engine: Engine) -> pd.Series:
 
 
 @st.cache_data(ttl=300)
-def get_operations_map_data(_engine: Engine, limit: int = 1000) -> pd.DataFrame:
+def get_operations_map_data(_engine: Engine, limit: int = 1000, france_metro_only: bool = False) -> pd.DataFrame:
     """
     Récupère les données GPS des opérations pour affichage sur carte.
     Optimisé avec cache et limite pour performances.
@@ -42,17 +42,33 @@ def get_operations_map_data(_engine: Engine, limit: int = 1000) -> pd.DataFrame:
     Args:
         _engine: Connexion à la base de données
         limit: Nombre maximum d'opérations à récupérer
+        france_metro_only: Si True, filtre uniquement la France métropolitaine
     
     Returns:
         pd.DataFrame: Colonnes operation_id, latitude, longitude, evenement
     """
+    # Filtres géographiques pour exclure les coordonnées invalides
+    # Exclut: (0,0), pôles exacts (-90,90), et limites exactes (-180,180)
+    geo_filter = """
+        AND latitude IS NOT NULL 
+        AND longitude IS NOT NULL
+        AND NOT (latitude = 0 AND longitude = 0)
+        AND latitude > -89.9 AND latitude < 89.9
+        AND longitude > -179.9 AND longitude < 179.9
+    """
+    
+    # Filtre optionnel pour France métropolitaine uniquement
+    if france_metro_only:
+        geo_filter += """
+        AND latitude BETWEEN 41.0 AND 51.5
+        AND longitude BETWEEN -5.5 AND 10.0
+        """
+    
     query = f"""
     SELECT operation_id, latitude, longitude, evenement 
     FROM operations 
-    WHERE latitude IS NOT NULL 
-        AND longitude IS NOT NULL
-        AND latitude BETWEEN -90 AND 90
-        AND longitude BETWEEN -180 AND 180
+    WHERE 1=1
+        {geo_filter}
     LIMIT {limit}
     """
     return pd.read_sql(query, _engine)

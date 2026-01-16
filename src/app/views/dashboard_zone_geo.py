@@ -18,8 +18,22 @@ def render(engine):
   st.title("🗺️ Zone Géographique — Où se concentrent l’activité et la gravité ?")
   st.caption("Objectif : localiser l’activité (volume), la charge humaine (impliqués) et la gravité (taux de décès).")
 
+  # Filtre géographique global
+  st.markdown("### 🌍 Filtre géographique")
+  france_metro_only = st.checkbox(
+      "🇫🇷 France métropolitaine uniquement",
+      value=False,
+      help="Affiche uniquement les opérations en France métropolitaine (exclut les DOM-TOM)",
+      key="zone_geo_france_metro_filter"
+  )
+  
+  if france_metro_only:
+      st.info("📍 Filtre actif : France métropolitaine (latitudes 41-51.5°N, longitudes -5.5-10°E)")
+  else:
+      st.info("🌍 Affichage : Tous les territoires français (métropole + DOM-TOM)")
 
-  # Pas de filtres
+
+  # Pas de filtres temporels
   where_sql = "1=1"
   params = {}
 
@@ -42,7 +56,7 @@ def render(engine):
   # ------------------------------------------------------
   st.subheader("📌 Indicateurs clés")
 
-  k = get_geographic_kpis(engine, where_sql, params)
+  k = get_geographic_kpis(engine, where_sql, params, france_metro_only=france_metro_only)
 
   ops_total = int(k.ops_total or 0)
   ops_geo = int(k.ops_geo or 0)
@@ -72,13 +86,14 @@ def render(engine):
   # ======================================================
   st.subheader("🌍 Carte des opérations (échantillon géolocalisé)")
 
-  df_map = get_map_coordinates(engine, where_sql, params, limit=3000)
+  df_map = get_map_coordinates(engine, where_sql, params, limit=3000, france_metro_only=france_metro_only)
 
   if df_map.empty:
       st.info("Aucune donnée GPS disponible sur la période sélectionnée.")
   else:
       st.map(df_map)
-      st.caption("Carte : affichage limité à 3000 points pour préserver les performances.")
+      territory_info = "France métropolitaine" if france_metro_only else "tous territoires français"
+      st.caption(f"Carte : affichage limité à 3000 points ({territory_info}). Les coordonnées invalides sont automatiquement exclues.")
 
   st.divider()
 
@@ -87,7 +102,7 @@ def render(engine):
   # ======================================================
   st.subheader("🏷️ Top zones (CROSS) — volume & charge humaine")
 
-  df_top = get_top_zones_cross(engine, where_sql, params, limit=15)
+  df_top = get_top_zones_cross(engine, where_sql, params, limit=15, france_metro_only=france_metro_only)
 
   left, right = st.columns([2, 1])
   with left:
