@@ -363,7 +363,7 @@ Lancez la suite complète :
 ```bash
 pytest tests/ -v --cov=src --cov-report=html
 ```
-
+![alt text](img/test.png)
 ### Fichiers de test
 
 #### `tests/test_cleaning.py` (50+ tests)
