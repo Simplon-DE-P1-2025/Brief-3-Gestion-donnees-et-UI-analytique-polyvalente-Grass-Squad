@@ -35,14 +35,6 @@ def render(engine):
         "- Y a-t-il des déclencheurs particulièrement **critiques** (taux de décès élevé) ?"
     )
     st.divider()
-
-    # ----------------------------------
-    # Bouton retour
-    # ----------------------------------
-    if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_alerte"):
-        st.session_state.action = 'dashboard'
-        st.rerun()
-
     # ----------------------------------
     # Filtres (si besoin)
     # ----------------------------------

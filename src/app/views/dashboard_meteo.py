@@ -35,10 +35,6 @@ def render(engine):
     params = {}
 
 
-    if st.button("⬅️ Retour au dashboard", key="btn_back_to_dashboard_meteo"):
-        st.session_state.action = 'dashboard'
-        st.rerun()
-  
 
     # ======================================================
     # 1 & 2) Vent + Mer : volume d'opérations (CÔTE À CÔTE)
