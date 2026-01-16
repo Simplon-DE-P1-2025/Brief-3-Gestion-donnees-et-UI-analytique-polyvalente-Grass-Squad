@@ -66,6 +66,10 @@ class OperationsQueries:
         Returns:
             DataFrame des opérations
         """
+        # Convertir les types numpy.int64 en int natif Python pour éviter les erreurs psycopg2
+        limit = int(limit)
+        offset = int(offset)
+        
         # Sécuriser les paramètres de tri
         allowed_columns = {
             "operation_id": "operation_id",
